@@ -1,0 +1,2 @@
+
+SUBDIRS=comedi_calibrate
