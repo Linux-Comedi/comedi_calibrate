@@ -31,7 +31,6 @@ class CalibrationSet
 {
 public:
 	CalibrationSet() {}
-	void addCalibration(
 private:
 };
 

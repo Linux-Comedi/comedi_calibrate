@@ -18,12 +18,13 @@
 #include <string>
 #include <vector>
 
-NIMSeriesCalibrator::NIMSeriesCalibrator(): Calibrator()
+NIMSeries::Calibrator::Calibrator(): ::Calibrator()
 {
 }
 
-std::vector<std::string> NIMSeriesCalibrator::supportedDeviceNames() const
+CalibrationSet NIMSeries::Calibrator::calibrate(const std::string &boardName)
 {
+	CalibrationSet calibration;
 	std::vector<std::string> supportedDeviceNames;
 	supportedDeviceNames.push_back("pci-6220");
 	supportedDeviceNames.push_back("pci-6221");
@@ -39,7 +40,7 @@ std::vector<std::string> NIMSeriesCalibrator::supportedDeviceNames() const
 	supportedDeviceNames.push_back("pci-6281");
 	supportedDeviceNames.push_back("pci-6284");
 	supportedDeviceNames.push_back("pci-6289");
-	return supportedDeviceNames;
+	return calibration;
 }
 
 // Private functions

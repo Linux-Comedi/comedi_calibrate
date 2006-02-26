@@ -21,14 +21,16 @@
 #include <string>
 #include <vector>
 
-/* Calibrator for National Instruments M-Series boards. */
-class NIMSeriesCalibrator: public Calibrator
+namespace NIMSeries
 {
-public:
-	NIMSeriesCalibrator();
-	virtual std::string supportedDriverName() const {return "ni_pcimio";}
-	virtual std::vector<std::string> supportedDeviceNames() const;
-private:
+	/* Calibrator for National Instruments M-Series boards. */
+	class Calibrator: public ::Calibrator
+	{
+	public:
+		Calibrator();
+		CalibrationSet calibrate(const std::string &deviceName);
+	private:
+	};
 };
 
 #endif	// _NI_M_SERIES_CALIBRATOR_HPP

@@ -17,6 +17,7 @@
 #ifndef _CALIBRATOR_HPP
 #define _CALIBRATOR_HPP
 
+#include "calibration_set.hpp"
 #include <string>
 #include <vector>
 
@@ -28,8 +29,7 @@ class Calibrator
 public:
 	Calibrator() {}
 	virtual ~Calibrator() {}
-	virtual std::string supportedDriverName() const = 0;
-	virtual std::vector<std::string> supportedDeviceNames() const = 0;
+	virtual CalibrationSet calibrate(const std::string &deviceName) = 0;
 private:
 };
 
