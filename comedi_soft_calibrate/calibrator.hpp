@@ -18,6 +18,7 @@
 #define _CALIBRATOR_HPP
 
 #include "calibration_set.hpp"
+#include <comedilib.h>
 #include <string>
 #include <vector>
 
@@ -31,7 +32,7 @@ public:
 	virtual ~Calibrator() {}
 	virtual std::string supportedDriverName() const = 0;
 	virtual std::vector<std::string> supportedDeviceNames() const = 0;
-	virtual CalibrationSet calibrate(const std::string &deviceName) = 0;
+	virtual CalibrationSet calibrate(comedi_t *dev, const std::string &deviceName) = 0;
 private:
 };
 

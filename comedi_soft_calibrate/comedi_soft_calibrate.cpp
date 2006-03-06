@@ -109,14 +109,22 @@ void ComediSoftCalibrateApp::exec()
 		std::cerr << message.str() << std::endl;
 		throw std::invalid_argument(message.str().c_str());
 	}
-	CalibrationSet calibration = (*it)->calibrate(_boardName);
+	CalibrationSet calibration = (*it)->calibrate(_comediDev, _boardName);
 // 	std::cout << "driver name: " << _driverName << std::endl;
 // 	std::cout << "board name: " << _boardName << std::endl;
 }
 
 int main(int argc, char **argv)
 {
-	ComediSoftCalibrateApp app(argc, argv);
-	app.exec();
+	try
+	{
+		ComediSoftCalibrateApp app(argc, argv);
+		app.exec();
+	}
+	catch(const std::exception &err)
+	{
+		std::cerr << "Caught exception: " << err.what() << std::endl;
+		return 1;
+	}
 	return 0;
 }
