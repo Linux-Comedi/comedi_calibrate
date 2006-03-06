@@ -28,7 +28,9 @@ namespace NIMSeries
 	{
 	public:
 		Calibrator();
-		CalibrationSet calibrate(const std::string &deviceName);
+		virtual std::string supportedDriverName() const {return "ni_pcimio";}
+		virtual std::vector<std::string> supportedDeviceNames() const;
+		virtual CalibrationSet calibrate(const std::string &deviceName);
 	private:
 	};
 };

@@ -15,16 +15,16 @@
 */
 
 #include "ni_m_series_calibrator.hpp"
+
+#include <iostream>
 #include <string>
 #include <vector>
 
 NIMSeries::Calibrator::Calibrator(): ::Calibrator()
 {
 }
-
-CalibrationSet NIMSeries::Calibrator::calibrate(const std::string &boardName)
+std::vector<std::string> NIMSeries::Calibrator::supportedDeviceNames() const
 {
-	CalibrationSet calibration;
 	std::vector<std::string> supportedDeviceNames;
 	supportedDeviceNames.push_back("pci-6220");
 	supportedDeviceNames.push_back("pci-6221");
@@ -40,6 +40,13 @@ CalibrationSet NIMSeries::Calibrator::calibrate(const std::string &boardName)
 	supportedDeviceNames.push_back("pci-6281");
 	supportedDeviceNames.push_back("pci-6284");
 	supportedDeviceNames.push_back("pci-6289");
+	return supportedDeviceNames;
+}
+
+CalibrationSet NIMSeries::Calibrator::calibrate(const std::string &boardName)
+{
+	std::cerr << __FUNCTION__ << ": " << boardName << std::endl;
+	CalibrationSet calibration;
 	return calibration;
 }
 

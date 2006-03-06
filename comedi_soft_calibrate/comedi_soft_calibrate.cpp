@@ -24,13 +24,14 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 class ComediSoftCalibrateApp
 {
 public:
 	ComediSoftCalibrateApp(int argc, char **argv);
 	virtual ~ComediSoftCalibrateApp();
-	int exec();
+	void exec();
 private:
 	boost::program_options::options_description desc;
 	boost::program_options::variables_map vm;
@@ -38,7 +39,7 @@ private:
 	std::string _driverName;
 	std::string _boardName;
 	comedi_t *_comediDev;
-	std::map<std::string, boost::shared_ptr<Calibrator> > _calibrators;
+	std::vector<boost::shared_ptr<Calibrator> > _calibrators;
 };
 
 ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
@@ -60,7 +61,7 @@ ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
 	}
 	boost::program_options::notify(vm);
 
-	_calibrators["ni_pcimio"] = boost::shared_ptr<Calibrator>(new NIMSeries::Calibrator());
+	_calibrators.push_back(boost::shared_ptr<Calibrator>(new NIMSeries::Calibrator()));
 	
 	_comediDev = comedi_open(_deviceFile.c_str());
 	if(_comediDev == 0)
@@ -81,22 +82,34 @@ ComediSoftCalibrateApp::~ComediSoftCalibrateApp()
 	if(_comediDev) comedi_close(_comediDev);
 }
 
-int ComediSoftCalibrateApp::exec()
+void ComediSoftCalibrateApp::exec()
 {
 	if(vm.count("help"))
 	{
 		std::cout << desc << std::endl;
-		return 1;
+		return;
 	}
-	std::map<std::string, boost::shared_ptr<Calibrator> >::iterator calibrator = _calibrators.find(_driverName);
-	if(calibrator == _calibrators.end())
+	std::vector<boost::shared_ptr<Calibrator> >::iterator it;
+	for(it = _calibrators.begin(); it != _calibrators.end(); ++it)
+	{
+		if((*it)->supportedDriverName() != _driverName) continue;
+		std::vector<std::string> devices = (*it)->supportedDeviceNames();
+		std::vector<std::string>::iterator dit;
+		for(dit = devices.begin(); dit != devices.end(); ++dit)
+		{
+			if(*dit == _boardName) break;
+		}
+		if(dit == devices.end()) continue;
+		break;
+	}
+	if(it == _calibrators.end())
 	{
 		std::ostringstream message;
 		message << "Failed to find calibrator for " << _driverName << " driver.";
 		std::cerr << message.str() << std::endl;
-		return 1;
+		throw std::invalid_argument(message.str().c_str());
 	}
-	CalibrationSet calibration = calibrator->second->calibrate(_boardName);
+	CalibrationSet calibration = (*it)->calibrate(_boardName);
 // 	std::cout << "driver name: " << _driverName << std::endl;
 // 	std::cout << "board name: " << _boardName << std::endl;
 }
@@ -104,5 +117,6 @@ int ComediSoftCalibrateApp::exec()
 int main(int argc, char **argv)
 {
 	ComediSoftCalibrateApp app(argc, argv);
-	return app.exec();
+	app.exec();
+	return 0;
 }
