@@ -9,7 +9,7 @@ comedi_calibrate_SOURCES = \
 comedi_calibrate_LDADD = -lcomedi -lm
 
 install-data-local:
-	$(INSTALL) -d $(localstatedir)/lib/comedi/calibrations
+	$(INSTALL) -d $(DESTDIR)$(localstatedir)/lib/comedi/calibrations
 
 EXTRA_DIST = results
 
