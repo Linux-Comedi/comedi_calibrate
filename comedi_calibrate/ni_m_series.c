@@ -47,11 +47,6 @@ static struct board_struct boards[]={
 
 static const int n_boards = sizeof(boards) / sizeof(boards[0]);
 
-static struct board_struct* ni_board(calibration_setup_t *setup)
-{
-	return setup->private_data;
-}
-
 uint16_t ni_read_eeprom_u16(calibration_setup_t *setup, int offset)
 {
 	uint16_t value = read_eeprom(setup, offset) << 8;
@@ -67,7 +62,7 @@ float ni_read_eeprom_f32(calibration_setup_t *setup, int offset)
 		float converted;
 	};
 	union float_converter my_converter;
-	
+
 	assert(sizeof(float) == 4);
 	my_converter.raw = read_eeprom(setup, offset++) << 24 & 0xff000000;
 	my_converter.raw |= (read_eeprom(setup, offset++) << 16) & 0xff0000;
@@ -101,7 +96,7 @@ static void ni_m_series_setup_observables(calibration_setup_t *setup)
 	comedi_insn tmpl;
 	double voltage_reference;
 	observable *o = setup->observables;
-	
+
 	calibration_area_start = ni_read_eeprom_u16(setup, calibration_area_offset);
 	DPRINT(1, "calibration area starts at offset %i\n", calibration_area_start);
 	voltage_reference = ni_read_eeprom_f32(setup, calibration_area_start + voltage_reference_offset);
@@ -113,14 +108,14 @@ static void ni_m_series_setup_observables(calibration_setup_t *setup)
 	tmpl.subdev = setup->ad_subdev;
 
 	o = setup->observables;
-	
+
 	o->name = "ai, reference voltage source";
 	o->observe_insn = tmpl;
 	o->observe_insn.chanspec = CR_PACK(0, 0, AREF_DIFF) | CR_ALT_SOURCE | CR_ALT_FILTER;
 	o->reference_source = NEG_CAL_GROUND | POS_CAL_REF;
 	o->target = voltage_reference;
 	++o;
-	
+
 	o->name = "ai, nominal 10V";
 	o->observe_insn = tmpl;
 	o->observe_insn.chanspec = CR_PACK(0, 0, AREF_DIFF) | CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -134,7 +129,7 @@ static void ni_m_series_setup_observables(calibration_setup_t *setup)
 	o->reference_source = NEG_CAL_GROUND | POS_CAL_2V;
 	o->target = 2.;
 	++o;
-		
+
 	o->name = "ai, nominal 0.5V";
 	o->observe_insn = tmpl;
 	o->observe_insn.chanspec = CR_PACK(0, 0, AREF_DIFF) | CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -167,7 +162,7 @@ static void ni_m_series_setup_observables(calibration_setup_t *setup)
 }
 
 int ni_m_series_setup(calibration_setup_t *setup , const char *device_name)
-{	
+{
 	int i;
 	for(i = 0; i < n_boards; ++i)
 	{
