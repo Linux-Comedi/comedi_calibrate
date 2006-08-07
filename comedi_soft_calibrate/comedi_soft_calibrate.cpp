@@ -1,4 +1,4 @@
-/*	
+/*
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation; either version 2 of the License, or
@@ -36,8 +36,14 @@ private:
 	boost::program_options::options_description desc;
 	boost::program_options::variables_map vm;
 	std::string _deviceFile;
-	std::string _driverName;
-	std::string _boardName;
+	std::string driverName() const
+	{
+		return comedi_get_driver_name(_comediDev);
+	}
+	std::string boardName() const
+	{
+		return comedi_get_board_name(_comediDev);
+	}
 	comedi_t *_comediDev;
 	std::vector<boost::shared_ptr<Calibrator> > _calibrators;
 };
@@ -62,7 +68,7 @@ ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
 	boost::program_options::notify(vm);
 
 	_calibrators.push_back(boost::shared_ptr<Calibrator>(new NIMSeries::Calibrator()));
-	
+
 	_comediDev = comedi_open(_deviceFile.c_str());
 	if(_comediDev == 0)
 	{
@@ -72,9 +78,7 @@ ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
 		comedi_perror("comedi_open");
 		throw std::runtime_error(message.str().c_str());
 	}
-	_driverName = comedi_get_driver_name(_comediDev);
-	_boardName = comedi_get_board_name(_comediDev);
-	
+
 }
 
 ComediSoftCalibrateApp::~ComediSoftCalibrateApp()
@@ -92,12 +96,12 @@ void ComediSoftCalibrateApp::exec()
 	std::vector<boost::shared_ptr<Calibrator> >::iterator it;
 	for(it = _calibrators.begin(); it != _calibrators.end(); ++it)
 	{
-		if((*it)->supportedDriverName() != _driverName) continue;
+		if((*it)->supportedDriverName() != driverName()) continue;
 		std::vector<std::string> devices = (*it)->supportedDeviceNames();
 		std::vector<std::string>::iterator dit;
 		for(dit = devices.begin(); dit != devices.end(); ++dit)
 		{
-			if(*dit == _boardName) break;
+			if(*dit == boardName()) break;
 		}
 		if(dit == devices.end()) continue;
 		break;
@@ -105,12 +109,12 @@ void ComediSoftCalibrateApp::exec()
 	if(it == _calibrators.end())
 	{
 		std::ostringstream message;
-		message << "Failed to find calibrator for " << _driverName << " driver.";
+		message << "Failed to find calibrator for " << driverName() << " driver.";
 		std::cerr << message.str() << std::endl;
 		throw std::invalid_argument(message.str().c_str());
 	}
-	CalibrationSet calibration = (*it)->calibrate(_comediDev, _boardName);
-// 	std::cout << "driver name: " << _driverName << std::endl;
+	CalibrationSet calibration = (*it)->calibrate(_comediDev, boardName());
+// 	std::cout << "driver name: " << driverName() << std::endl;
 // 	std::cout << "board name: " << _boardName << std::endl;
 }
 

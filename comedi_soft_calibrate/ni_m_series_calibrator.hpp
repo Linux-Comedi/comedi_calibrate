@@ -1,4 +1,4 @@
-/*	
+/*
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation; either version 2 of the License, or
@@ -32,9 +32,15 @@ namespace NIMSeries
 		virtual std::vector<std::string> supportedDeviceNames() const;
 		virtual CalibrationSet calibrate(comedi_t *dev, const std::string &deviceName);
 	private:
+		comedi_t *_dev;
+	};
+
+	class References
+	{
+	public:
 		static const int positive_cal_shift = 7;
 		static const int negative_cal_shift = 10;
-		enum positive_cal_source
+		enum PositiveCalSource
 		{
 			POS_CAL_GROUND = 0 << positive_cal_shift,
 			POS_CAL_REF = 2 << positive_cal_shift,
@@ -43,12 +49,17 @@ namespace NIMSeries
 			POS_CAL_PWM_10V = 5 << positive_cal_shift,
 			POS_CAL_AO = 7 << positive_cal_shift
 		};
-		enum negative_cal_source
+		enum NegativeCalSource
 		{
 			NEG_CAL_GROUND = 0 << negative_cal_shift,
 			NEG_CAL_PWM_10V = 7 << negative_cal_shift,
 		};
-		void setPWMRef(int high_ns, int low_ns);
+		References(comedi_t *dev);
+		void setPWM(int high_ns, int low_ns);
+		void setReference(enum PositiveCalSource posSource, enum NegativeCalSource NegSource);
+		std::vector<double> readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
+	private:
+		int ADSubdev() const;
 		comedi_t *_dev;
 	};
 };
