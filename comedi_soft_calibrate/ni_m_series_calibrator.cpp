@@ -52,7 +52,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string
 	std::cerr << __FUNCTION__ << ": " << boardName << std::endl;
 	_dev = dev;
 	NIMSeries::References references(dev);
-	references.setReference(POS_CAL_PWM_10V, NEG_CAL_GROUND);
+	references.setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	static const int masterClockPeriodNanoSec = 50;
 	static const int pulseWidthIncrement = 0x20;
 	static const int incrementsPerPulse = 30;
