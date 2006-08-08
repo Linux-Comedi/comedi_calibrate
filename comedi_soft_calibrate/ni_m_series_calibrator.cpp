@@ -92,13 +92,14 @@ void NIMSeries::References::setPWM(int high_ns, int low_ns)
 	}
 	memset(&pwm_insn, 0, sizeof(pwm_insn));
 	pwm_insn.insn = INSN_CONFIG;
-	pwm_insn.n = 4;
+	pwm_insn.n = 5;
 	pwm_insn.subdev = pwm_subdev;
 	std::vector<lsampl_t> config_data(pwm_insn.n);
 	config_data.at(0) = INSN_CONFIG_PWM_OUTPUT;
 	config_data.at(1) = TRIG_ROUND_NEAREST;
 	config_data.at(2) = high_ns;
-	config_data.at(3) = low_ns;
+	config_data.at(3) = TRIG_ROUND_NEAREST;
+	config_data.at(4) = low_ns;
 	pwm_insn.data = &config_data.at(0);
 	int retval = comedi_do_insn(_dev, &pwm_insn);
 	if(retval < 0)
