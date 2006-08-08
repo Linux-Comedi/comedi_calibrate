@@ -17,6 +17,7 @@
 #include "ni_m_series_calibrator.hpp"
 
 #include <boost/array.hpp>
+#include "calibrator_misc.hpp"
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -57,18 +58,23 @@ CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string
 	static const int pulseWidthIncrement = 0x20;
 	static const int incrementsPerPulse = 30;
 	static const int settleNanoSec = 1000000;
+	static const int numSamples = 1000;
 	int i;
 	for(i = 1; i < incrementsPerPulse; ++i)
 	{
-		references.setPWM(masterClockPeriodNanoSec * pulseWidthIncrement * i,
-			masterClockPeriodNanoSec * pulseWidthIncrement * (incrementsPerPulse - i));
-		std::vector<double> readings = references.readReference(10, 0, settleNanoSec);
-		std::cout << "i = " << i << "\n";
-		std::vector<double>::const_iterator it;
-		for(it = readings.begin(); it != readings.end(); ++it)
+		unsigned upPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * i;
+		unsigned downPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * (incrementsPerPulse - i);
+		unsigned actualUpPeriod, actualDownPeriod;
+		references.setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
+		if(upPeriod != actualUpPeriod || downPeriod != actualDownPeriod)
 		{
-			std::cout << "\t" << *it << "\n";
+			std::cerr << __FUNCTION__ << ": uh-oh, we must have gotten the master clock period wrong?" << std::endl;
 		}
+		std::vector<double> readings = references.readReference(numSamples, 0, settleNanoSec);
+		std::cout << "i = " << i << "\n";
+		double mean = estimateMean(readings);
+		std::cout << "\testimate of mean = " << mean << "\n";
+		std::cout << "\testimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
 	}
 	CalibrationSet calibration;
 	return calibration;
@@ -82,7 +88,7 @@ NIMSeries::References::References(comedi_t *dev): _dev(dev)
 {
 }
 
-void NIMSeries::References::setPWM(int high_ns, int low_ns)
+void NIMSeries::References::setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns, unsigned *actual_low_ns)
 {
 	comedi_insn pwm_insn;
 	int pwm_subdev = comedi_find_subdevice_by_type(_dev, COMEDI_SUBD_CALIB, 0);
@@ -106,6 +112,10 @@ void NIMSeries::References::setPWM(int high_ns, int low_ns)
 	{
 		throw std::runtime_error("PWM config insn failed.");
 	}
+	if(actual_high_ns)
+		*actual_high_ns = config_data.at(2);
+	if(actual_low_ns)
+		*actual_low_ns = config_data.at(4);
 }
 
 void NIMSeries::References::setReference(enum PositiveCalSource posSource, enum NegativeCalSource negSource)

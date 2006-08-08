@@ -55,7 +55,7 @@ namespace NIMSeries
 			NEG_CAL_PWM_10V = 7 << negative_cal_shift,
 		};
 		References(comedi_t *dev);
-		void setPWM(int high_ns, int low_ns);
+		void setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns = 0, unsigned *actual_low_ns = 0);
 		void setReference(enum PositiveCalSource posSource, enum NegativeCalSource NegSource);
 		std::vector<double> readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
 	private:
