@@ -48,7 +48,7 @@ const std::vector<double> fitPolynomial(const std::vector<double> &x, const std:
 	gsl_matrix *covariance = gsl_matrix_alloc(NUM_COEFFICIENTS, NUM_COEFFICIENTS);
 	gsl_multifit_linear_workspace *work = gsl_multifit_linear_alloc(x.size(), NUM_COEFFICIENTS);
 	double chisq;
-	gsl_matrix *m = gsl_matrix_alloc(x.size(), NUM_COEFFICIENTS + 1);
+	gsl_matrix *m = gsl_matrix_alloc(x.size(), NUM_COEFFICIENTS);
 	int i;
 	for(i = 0; i < x.size(); ++i)
 	{
@@ -59,7 +59,7 @@ const std::vector<double> fitPolynomial(const std::vector<double> &x, const std:
 			gsl_matrix_set(m, i, j, gsl_matrix_get(m, i, j - 1) * x.at(i));
 		}
 	}
-	gsl_vector_const_view b = gsl_vector_const_view_array(&y.at(0), x.size());
+	gsl_vector_const_view b = gsl_vector_const_view_array(&y.at(0), y.size());
 	std::vector<double> coefficients(NUM_COEFFICIENTS);
 	gsl_vector_view result = gsl_vector_view_array(&coefficients.at(0), NUM_COEFFICIENTS);
 	gsl_multifit_linear(m, &b.vector, &result.vector, covariance, &chisq, work);
