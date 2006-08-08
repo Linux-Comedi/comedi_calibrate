@@ -17,7 +17,12 @@
 #include "calibrator_misc.hpp"
 
 #include <cmath>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_multifit.h>
 #include <gsl/gsl_statistics_double.h>
+#include <gsl/gsl_vector.h>
+#include <sstream>
+#include <stdexcept>
 
 double estimateMean(const std::vector<double> &samples)
 {
@@ -28,4 +33,38 @@ double estimateStandardDeviationOfMean(const std::vector<double> &samples, doubl
 {
 	double value = gsl_stats_variance_m(&samples.at(0), 1, samples.size(), mean);
 	return std::sqrt(value / samples.size());
+}
+
+// returns polynomial coefficients for polynomial fit to data y = f(x)
+const std::vector<double> fitPolynomial(const std::vector<double> &x, const std::vector<double> &y)
+{
+	static const int NUM_COEFFICIENTS = 4;
+	if(x.size() != y.size())
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": x and y sizes are different.\n";
+		throw std::invalid_argument(message.str());
+	}
+	gsl_matrix *covariance = gsl_matrix_alloc(NUM_COEFFICIENTS, NUM_COEFFICIENTS);
+	gsl_multifit_linear_workspace *work = gsl_multifit_linear_alloc(x.size(), NUM_COEFFICIENTS);
+	double chisq;
+	gsl_matrix *m = gsl_matrix_alloc(x.size(), NUM_COEFFICIENTS + 1);
+	int i;
+	for(i = 0; i < x.size(); ++i)
+	{
+		gsl_matrix_set(m, i, 0, 1.);
+		int j;
+		for(j = 1; j < NUM_COEFFICIENTS; ++j)
+		{
+			gsl_matrix_set(m, i, j, gsl_matrix_get(m, i, j - 1) * x.at(i));
+		}
+	}
+	gsl_vector_const_view b = gsl_vector_const_view_array(&y.at(0), x.size());
+	std::vector<double> coefficients(NUM_COEFFICIENTS);
+	gsl_vector_view result = gsl_vector_view_array(&coefficients.at(0), NUM_COEFFICIENTS);
+	gsl_multifit_linear(m, &b.vector, &result.vector, covariance, &chisq, work);
+	gsl_matrix_free(m);
+	gsl_matrix_free(covariance);
+	gsl_multifit_linear_free(work);
+	return coefficients;
 }

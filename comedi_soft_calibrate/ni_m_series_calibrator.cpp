@@ -58,8 +58,10 @@ CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string
 	static const int pulseWidthIncrement = 0x20;
 	static const int incrementsPerPulse = 30;
 	static const int settleNanoSec = 1000000;
-	static const int numSamples = 1000;
+	static const int numSamples = 10000;
 	int i;
+	std::vector<double> nominalVoltages;
+	std::vector<double> measuredVoltages;
 	for(i = 1; i < incrementsPerPulse; ++i)
 	{
 		unsigned upPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * i;
@@ -75,14 +77,23 @@ CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string
 		double mean = estimateMean(readings);
 		std::cout << "\testimate of mean = " << mean << "\n";
 		std::cout << "\testimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
+		nominalVoltages.push_back((-10. * actualUpPeriod + 10. * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
+		measuredVoltages.push_back(mean);
 	}
+	std::vector<double> polynomial = fitPolynomial(measuredVoltages, nominalVoltages);
+	std::cout << "polynomial fit:\n";
+	unsigned j;
+	for(j = 0; j < polynomial.size(); ++j)
+		std::cout << "\t" << polynomial.at(j);
+	std::cout << std::endl;
 	CalibrationSet calibration;
 	return calibration;
 }
 
 // Private functions
 
-// Reference
+
+// References
 
 NIMSeries::References::References(comedi_t *dev): _dev(dev)
 {
