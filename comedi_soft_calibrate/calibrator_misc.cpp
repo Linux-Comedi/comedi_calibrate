@@ -36,7 +36,7 @@ double estimateStandardDeviationOfMean(const std::vector<double> &samples, doubl
 }
 
 // returns polynomial coefficients for polynomial fit to data y = f(x)
-const std::vector<double> fitPolynomial(const std::vector<double> &x, const std::vector<double> &y)
+const std::vector<double> fitPolynomial(const std::vector<double> &x, const std::vector<double> &y, double expansionOrigin)
 {
 	static const int NUM_COEFFICIENTS = 4;
 	if(x.size() != y.size())
@@ -56,7 +56,7 @@ const std::vector<double> fitPolynomial(const std::vector<double> &x, const std:
 		int j;
 		for(j = 1; j < NUM_COEFFICIENTS; ++j)
 		{
-			gsl_matrix_set(m, i, j, gsl_matrix_get(m, i, j - 1) * x.at(i));
+			gsl_matrix_set(m, i, j, gsl_matrix_get(m, i, j - 1) * (x.at(i) - expansionOrigin));
 		}
 	}
 	gsl_vector_const_view b = gsl_vector_const_view_array(&y.at(0), y.size());

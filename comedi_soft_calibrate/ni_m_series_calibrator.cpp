@@ -88,7 +88,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 		nominalCodes.push_back(static_cast<double>(0 * actualUpPeriod + maxData * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
 		measuredCodes.push_back(mean);
 	}
-	std::vector<double> polynomial = fitPolynomial(measuredCodes, nominalCodes);
+	std::vector<double> polynomial = fitPolynomial(measuredCodes, nominalCodes, maxData / 2.);
 	std::cout << "polynomial fit:\n";
 	unsigned j;
 	for(j = 0; j < polynomial.size(); ++j)

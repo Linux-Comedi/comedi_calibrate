@@ -21,6 +21,6 @@
 
 double estimateMean(const std::vector<double> &samples);
 double estimateStandardDeviationOfMean(const std::vector<double> &samples, double mean);
-const std::vector<double> fitPolynomial(const std::vector<double> &x, const std::vector<double> &y);
+const std::vector<double> fitPolynomial(const std::vector<double> &x, const std::vector<double> &y, double expansionOrigin);
 
 #endif	// _CALIBRATOR_MISC_HPP
