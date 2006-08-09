@@ -18,7 +18,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 #include "calibrator.hpp"
-#include <comedilib.h>
+#include "comedi_wrapper.hpp"
 #include <iostream>
 #include "ni_m_series_calibrator.hpp"
 #include <sstream>
@@ -36,20 +36,12 @@ private:
 	boost::program_options::options_description desc;
 	boost::program_options::variables_map vm;
 	std::string _deviceFile;
-	std::string driverName() const
-	{
-		return comedi_get_driver_name(_comediDev);
-	}
-	std::string boardName() const
-	{
-		return comedi_get_board_name(_comediDev);
-	}
-	comedi_t *_comediDev;
+	boost::shared_ptr<comedi::Device> _comediDev;
 	std::vector<boost::shared_ptr<Calibrator> > _calibrators;
 };
 
 ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
-	desc("Allowed options"), _comediDev(0)
+	desc("Allowed options")
 {
 	desc.add_options()
 		("help", "produce this help message and exit")
@@ -68,23 +60,11 @@ ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
 	boost::program_options::notify(vm);
 
 	_calibrators.push_back(boost::shared_ptr<Calibrator>(new NIMSeries::Calibrator()));
-
-	_comediDev = comedi_open(_deviceFile.c_str());
-	if(_comediDev == 0)
-	{
-		std::ostringstream message;
-		message << "comedi_open() failed, with device file name: " << _deviceFile;
-		std::cerr << message.str() << std::endl;
-		comedi_perror("comedi_open");
-		throw std::runtime_error(message.str().c_str());
-	}
-
+	_comediDev.reset(new comedi::Device(_deviceFile));
 }
 
 ComediSoftCalibrateApp::~ComediSoftCalibrateApp()
-{
-	if(_comediDev) comedi_close(_comediDev);
-}
+{}
 
 void ComediSoftCalibrateApp::exec()
 {
@@ -96,12 +76,12 @@ void ComediSoftCalibrateApp::exec()
 	std::vector<boost::shared_ptr<Calibrator> >::iterator it;
 	for(it = _calibrators.begin(); it != _calibrators.end(); ++it)
 	{
-		if((*it)->supportedDriverName() != driverName()) continue;
+		if((*it)->supportedDriverName() != _comediDev->driverName()) continue;
 		std::vector<std::string> devices = (*it)->supportedDeviceNames();
 		std::vector<std::string>::iterator dit;
 		for(dit = devices.begin(); dit != devices.end(); ++dit)
 		{
-			if(*dit == boardName()) break;
+			if(*dit == _comediDev->boardName()) break;
 		}
 		if(dit == devices.end()) continue;
 		break;
@@ -109,11 +89,11 @@ void ComediSoftCalibrateApp::exec()
 	if(it == _calibrators.end())
 	{
 		std::ostringstream message;
-		message << "Failed to find calibrator for " << driverName() << " driver.";
+		message << "Failed to find calibrator for " << _comediDev->driverName() << " driver.";
 		std::cerr << message.str() << std::endl;
 		throw std::invalid_argument(message.str().c_str());
 	}
-	CalibrationSet calibration = (*it)->calibrate(_comediDev, boardName());
+	CalibrationSet calibration = (*it)->calibrate(_comediDev);
 // 	std::cout << "driver name: " << driverName() << std::endl;
 // 	std::cout << "board name: " << _boardName << std::endl;
 }

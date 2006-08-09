@@ -30,9 +30,9 @@ namespace NIMSeries
 		Calibrator();
 		virtual std::string supportedDriverName() const {return "ni_pcimio";}
 		virtual std::vector<std::string> supportedDeviceNames() const;
-		virtual CalibrationSet calibrate(comedi_t *dev, const std::string &deviceName);
+		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
 	private:
-		comedi_t *_dev;
+		boost::shared_ptr<comedi::Device> _dev;
 	};
 
 	class References
@@ -54,13 +54,20 @@ namespace NIMSeries
 			NEG_CAL_GROUND = 0 << negative_cal_shift,
 			NEG_CAL_PWM_10V = 7 << negative_cal_shift,
 		};
-		References(comedi_t *dev);
+		References(boost::shared_ptr<comedi::Device> dev);
 		void setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns = 0, unsigned *actual_low_ns = 0);
 		void setReference(enum PositiveCalSource posSource, enum NegativeCalSource NegSource);
-		std::vector<double> readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
+		std::vector<lsampl_t> readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
 	private:
-		int ADSubdev() const;
-		comedi_t *_dev;
+		boost::shared_ptr<comedi::Device> _dev;
+	};
+
+	class EEPROM
+	{
+	public:
+		EEPROM(boost::shared_ptr<comedi::Device> dev);
+	private:
+		boost::shared_ptr<comedi::Device> _dev;
 	};
 };
 

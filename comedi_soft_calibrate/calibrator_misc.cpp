@@ -49,7 +49,7 @@ const std::vector<double> fitPolynomial(const std::vector<double> &x, const std:
 	gsl_multifit_linear_workspace *work = gsl_multifit_linear_alloc(x.size(), NUM_COEFFICIENTS);
 	double chisq;
 	gsl_matrix *m = gsl_matrix_alloc(x.size(), NUM_COEFFICIENTS);
-	int i;
+	unsigned i;
 	for(i = 0; i < x.size(); ++i)
 	{
 		gsl_matrix_set(m, i, 0, 1.);

@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-NIMSeries::Calibrator::Calibrator(): ::Calibrator(), _dev(0)
+NIMSeries::Calibrator::Calibrator(): ::Calibrator()
 {
 }
 std::vector<std::string> NIMSeries::Calibrator::supportedDeviceNames() const
@@ -48,9 +48,9 @@ std::vector<std::string> NIMSeries::Calibrator::supportedDeviceNames() const
 	return supportedDeviceNames;
 }
 
-CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string &boardName)
+CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device> dev)
 {
-	std::cerr << __FUNCTION__ << ": " << boardName << std::endl;
+	std::cerr << __FUNCTION__ << ": " << dev->boardName() << std::endl;
 	_dev = dev;
 	NIMSeries::References references(dev);
 	references.setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
@@ -60,10 +60,19 @@ CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string
 	static const int settleNanoSec = 1000000;
 	static const int numSamples = 10000;
 	int i;
-	std::vector<double> nominalVoltages;
-	std::vector<double> measuredVoltages;
+	std::vector<double> nominalCodes;
+	std::vector<double> measuredCodes;
+// FIXME	lsampl_t maxData = comedi_get_maxdata(_dev, ADSubdev(), 0);
+lsampl_t maxData = 0x3ffff;
+	if(maxData == 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_get_maxdata() failed.";
+		throw std::runtime_error(message.str());
+	}
 	for(i = 1; i < incrementsPerPulse; ++i)
 	{
+		/* for 6289, results become unstable if upPeriod or downPeriod ever drops below about 1 usec */
 		unsigned upPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * i;
 		unsigned downPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * (incrementsPerPulse - i);
 		unsigned actualUpPeriod, actualDownPeriod;
@@ -72,15 +81,17 @@ CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string
 		{
 			std::cerr << __FUNCTION__ << ": uh-oh, we must have gotten the master clock period wrong?" << std::endl;
 		}
-		std::vector<double> readings = references.readReference(numSamples, 0, settleNanoSec);
+		std::vector<lsampl_t> rawData = references.readReference(numSamples, 0, settleNanoSec);
+		std::vector<double> readings(rawData.size());
+		std::copy(rawData.begin(), rawData.end(), readings.begin());
 		std::cout << "i = " << i << "\n";
 		double mean = estimateMean(readings);
 		std::cout << "\testimate of mean = " << mean << "\n";
 		std::cout << "\testimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
-		nominalVoltages.push_back((-10. * actualUpPeriod + 10. * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
-		measuredVoltages.push_back(mean);
+		nominalCodes.push_back(static_cast<double>(0 * actualUpPeriod + maxData * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
+		measuredCodes.push_back(mean);
 	}
-	std::vector<double> polynomial = fitPolynomial(measuredVoltages, nominalVoltages);
+	std::vector<double> polynomial = fitPolynomial(measuredCodes, nominalCodes);
 	std::cout << "polynomial fit:\n";
 	unsigned j;
 	for(j = 0; j < polynomial.size(); ++j)
@@ -95,14 +106,14 @@ CalibrationSet NIMSeries::Calibrator::calibrate(comedi_t *dev, const std::string
 
 // References
 
-NIMSeries::References::References(comedi_t *dev): _dev(dev)
+NIMSeries::References::References(boost::shared_ptr<comedi::Device> dev): _dev(dev)
 {
 }
 
 void NIMSeries::References::setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns, unsigned *actual_low_ns)
 {
 	comedi_insn pwm_insn;
-	int pwm_subdev = comedi_find_subdevice_by_type(_dev, COMEDI_SUBD_CALIB, 0);
+	int pwm_subdev = _dev->findSubdeviceByType(COMEDI_SUBD_CALIB);
 	if(pwm_subdev < 0)
 	{
 		throw std::runtime_error("Failed to find PWM subdevice.");
@@ -118,11 +129,7 @@ void NIMSeries::References::setPWM(unsigned high_ns, unsigned low_ns, unsigned *
 	config_data.at(3) = TRIG_ROUND_NEAREST;
 	config_data.at(4) = low_ns;
 	pwm_insn.data = &config_data.at(0);
-	int retval = comedi_do_insn(_dev, &pwm_insn);
-	if(retval < 0)
-	{
-		throw std::runtime_error("PWM config insn failed.");
-	}
+	_dev->doInsn(&pwm_insn);
 	if(actual_high_ns)
 		*actual_high_ns = config_data.at(2);
 	if(actual_low_ns)
@@ -136,40 +143,23 @@ void NIMSeries::References::setReference(enum PositiveCalSource posSource, enum 
 	memset(&referenceSourceConfig, 0, sizeof(referenceSourceConfig));
 	referenceSourceConfig.insn = INSN_CONFIG;
 	referenceSourceConfig.n = refData.size();
-	referenceSourceConfig.subdev = ADSubdev();
+	referenceSourceConfig.subdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	refData.at(0) = INSN_CONFIG_ALT_SOURCE;
 	refData.at(1) = posSource | negSource;
 	referenceSourceConfig.data = &refData.at(0);
-	int retval = comedi_do_insn(_dev, &referenceSourceConfig);
-	if(retval < 0)
-	{
-		std::ostringstream message;
-		message << __FUNCTION__ << ": comedi_do_insn failed, retval=" << retval << " .";
-		throw std::runtime_error(message.str());
-	}
+	_dev->doInsn(&referenceSourceConfig);
 }
 
-std::vector<double> NIMSeries::References::readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const
+std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const
 {
-	if(numSamples <= 0)
-	{
-		std::ostringstream message;
-		message << __FUNCTION__ << ": invalid numSamples=" << numSamples << " .";
-		throw std::invalid_argument(message.str());
-	}
 	if(settleNanoSec >= 1000000000)
 	{
 		std::ostringstream message;
 		message << __FUNCTION__ << ": invalid settleNanoSec=" << settleNanoSec << " .";
 		throw std::invalid_argument(message.str());
 	}
-	int ret = comedi_data_read_hint(_dev, ADSubdev(), 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF);
-	if(ret < 0)
-	{
-		std::ostringstream message;
-		message << __FUNCTION__ << ": comedi_data_read_hint() failed, return value=" << ret << " .";
-		throw std::runtime_error(message.str());
-	}
+	unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF);
 	struct timespec req;
 	req.tv_sec = 0;
 	req.tv_nsec = settleNanoSec;
@@ -179,44 +169,5 @@ std::vector<double> NIMSeries::References::readReference(unsigned numSamples, un
 		message << __FUNCTION__ << ": nanosleep() returned error, errno=" << errno << std::endl;
 		throw std::runtime_error(message.str());
 	}
-	std::vector<lsampl_t> rawData(numSamples);
-	ret = comedi_data_read_n(_dev, ADSubdev(), 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF, &rawData.at(0), rawData.size());
-	if(ret < 0)
-	{
-		std::ostringstream message;
-		message << __FUNCTION__ << ": comedi_data_read_n() failed, return value=" << ret << " .";
-		throw std::runtime_error(message.str());
-	}
-	std::vector<double> volts;
-	std::vector<lsampl_t>::const_iterator it;
-	lsampl_t maxData = comedi_get_maxdata(_dev, ADSubdev(), 0);
-	if(maxData == 0)
-	{
-		std::ostringstream message;
-		message << __FUNCTION__ << ": comedi_get_maxdata() failed.";
-		throw std::runtime_error(message.str());
-	}
-	comedi_range *cRange = comedi_get_range(_dev, ADSubdev(), 0, inputRange);
-	if(cRange == 0)
-	{
-		std::ostringstream message;
-		message << __FUNCTION__ << ": comedi_get_range() failed.";
-		throw std::runtime_error(message.str());
-	}
-	for(it = rawData.begin(); it != rawData.end(); ++it)
-	{
-		double value = comedi_to_phys(*it, cRange, maxData);
-		volts.push_back(value);
-	}
-	return volts;
-}
-
-int NIMSeries::References::ADSubdev() const
-{
-	int subdev = comedi_find_subdevice_by_type(_dev, COMEDI_SUBD_AI, 0);
-	if(subdev < 0)
-	{
-		throw std::runtime_error("Failed to find AI subdevice.");
-	}
-	return subdev;
+	return _dev->dataReadN(ADSubdev, 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF, numSamples);
 }
