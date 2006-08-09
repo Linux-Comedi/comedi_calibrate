@@ -18,10 +18,12 @@
 
 #include <boost/array.hpp>
 #include "calibrator_misc.hpp"
+#include <cassert>
 #include <cstring>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <stdint.h>
 #include <string>
 #include <vector>
 
@@ -52,6 +54,8 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 {
 	std::cerr << __FUNCTION__ << ": " << dev->boardName() << std::endl;
 	_dev = dev;
+	NIMSeries::EEPROM eeprom(dev);
+	std::cout << "EEPROM says onboard voltage reference is " << eeprom.referenceVoltage() << " volts." << std::endl;
 	NIMSeries::References references(dev);
 	references.setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	static const int masterClockPeriodNanoSec = 50;
@@ -62,14 +66,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	int i;
 	std::vector<double> nominalCodes;
 	std::vector<double> measuredCodes;
-// FIXME	lsampl_t maxData = comedi_get_maxdata(_dev, ADSubdev(), 0);
-lsampl_t maxData = 0x3ffff;
-	if(maxData == 0)
-	{
-		std::ostringstream message;
-		message << __FUNCTION__ << ": comedi_get_maxdata() failed.";
-		throw std::runtime_error(message.str());
-	}
+	lsampl_t maxData = _dev->maxData(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
 	for(i = 1; i < incrementsPerPulse; ++i)
 	{
 		/* for 6289, results become unstable if upPeriod or downPeriod ever drops below about 1 usec */
@@ -171,3 +168,54 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	}
 	return _dev->dataReadN(ADSubdev, 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF, numSamples);
 }
+
+// EEPROM
+
+NIMSeries::EEPROM::EEPROM(boost::shared_ptr<comedi::Device> dev): _dev(dev)
+{
+
+}
+
+float NIMSeries::EEPROM::referenceVoltage() const
+{
+	return readFloat(calibrationAreaBaseAddress() + voltageReferenceOffset);
+}
+
+// private functions
+
+unsigned NIMSeries::EEPROM::readByte(unsigned address) const
+{
+	unsigned value = _dev->dataRead(_dev->findSubdeviceByType(COMEDI_SUBD_MEMORY), address, 0, 0);
+	assert(value <= 0xff);
+	return value;
+}
+
+unsigned NIMSeries::EEPROM::readUInt16(unsigned startAddress) const
+{
+	unsigned value = readByte(startAddress) << 8;
+	value |= readByte(startAddress + 1);
+	return value;
+}
+
+float NIMSeries::EEPROM::readFloat(unsigned startAddress) const
+{
+	union FloatConverter
+	{
+		uint32_t integer;
+		float floatingPoint;
+	};
+	union FloatConverter myConverter;
+	assert(sizeof(float) == sizeof(uint32_t));
+	unsigned address = startAddress;
+	myConverter.integer = readByte(address++) << 24;
+	myConverter.integer |= readByte(address++) << 16;
+	myConverter.integer |= readByte(address++) << 8;
+	myConverter.integer |= readByte(address++);
+	return myConverter.floatingPoint;
+}
+
+unsigned NIMSeries::EEPROM::calibrationAreaBaseAddress() const
+{
+	return readUInt16(24);
+}
+

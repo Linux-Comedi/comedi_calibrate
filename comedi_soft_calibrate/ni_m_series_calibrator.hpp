@@ -66,7 +66,16 @@ namespace NIMSeries
 	{
 	public:
 		EEPROM(boost::shared_ptr<comedi::Device> dev);
+		float referenceVoltage() const;
 	private:
+		enum CalibrationAreaOffsets
+		{
+			voltageReferenceOffset = 12
+		};
+		unsigned calibrationAreaBaseAddress() const;
+		unsigned readByte(unsigned address) const;
+		unsigned readUInt16(unsigned startAddress) const;
+		float readFloat(unsigned startAddress) const;
 		boost::shared_ptr<comedi::Device> _dev;
 	};
 };

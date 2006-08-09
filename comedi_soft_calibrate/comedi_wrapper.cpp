@@ -74,6 +74,19 @@ std::string comedi::Device::boardName() const
 	return name;
 }
 
+lsampl_t comedi::Device::dataRead(unsigned subdevice, unsigned channel, unsigned range, unsigned aref)
+{
+	lsampl_t value;
+	int retval = comedi_data_read(_dev, subdevice, channel, range, aref, &value);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_data_read() failed, return value=" << retval << " .";
+		throw std::runtime_error(message.str());
+	}
+	return value;
+}
+
 std::vector<lsampl_t> comedi::Device::dataReadN(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, unsigned numSamples)
 {
 	std::vector<lsampl_t> values(numSamples);

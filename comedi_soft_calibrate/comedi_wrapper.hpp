@@ -32,6 +32,7 @@ namespace comedi
 		unsigned findSubdeviceByType(int type, unsigned startSubdevice = 0) const;
 		std::string driverName() const;
 		std::string boardName() const;
+		lsampl_t dataRead(unsigned subdevice, unsigned channel, unsigned range, unsigned aref);
 		std::vector<lsampl_t> dataReadN(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, unsigned numSamples);
 		void dataReadHint(unsigned subdevice, unsigned channel, unsigned range, unsigned aref);
 		void doInsn(comedi_insn *instruction);
