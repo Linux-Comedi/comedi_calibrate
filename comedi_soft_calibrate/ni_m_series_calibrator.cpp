@@ -85,7 +85,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 		double mean = estimateMean(readings);
 		std::cout << "\testimate of mean = " << mean << "\n";
 		std::cout << "\testimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
-		nominalCodes.push_back(static_cast<double>(0 * actualUpPeriod + maxData * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
+		nominalCodes.push_back((0. * actualUpPeriod + static_cast<double>(maxData) * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
 		measuredCodes.push_back(mean);
 	}
 	std::vector<double> polynomial = fitPolynomial(measuredCodes, nominalCodes, maxData / 2.);
