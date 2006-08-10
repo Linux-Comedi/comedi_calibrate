@@ -68,3 +68,19 @@ const std::vector<double> fitPolynomial(const std::vector<double> &x, const std:
 	gsl_multifit_linear_free(work);
 	return coefficients;
 }
+
+Polynomial::Polynomial(): expansionOrigin(0.)
+{}
+
+double Polynomial::output(double input) const
+{
+	double value = 0.;
+	double term = 1.;
+	unsigned i;
+	for(i = 0; i < coefficients.size(); ++i)
+	{
+		value += coefficients.at(i) * term;
+		term *= input - expansionOrigin;
+	}
+	return value;
+}

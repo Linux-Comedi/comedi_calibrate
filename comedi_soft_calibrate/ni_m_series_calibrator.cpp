@@ -56,7 +56,17 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	_dev = dev;
 	NIMSeries::EEPROM eeprom(dev);
 	std::cout << "EEPROM says onboard voltage reference is " << eeprom.referenceVoltage() << " volts." << std::endl;
-	NIMSeries::References references(dev);
+
+	Polynomial nonlinearityCorrection = calibrateNonlinearity();
+	CalibrationSet calibration;
+	return calibration;
+}
+
+// Private functions
+
+Polynomial NIMSeries::Calibrator::calibrateNonlinearity()
+{
+	NIMSeries::References references(_dev);
 	references.setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	static const int masterClockPeriodNanoSec = 50;
 	static const int pulseWidthIncrement = 0x20;
@@ -69,7 +79,8 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	lsampl_t maxData = _dev->maxData(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
 	for(i = 1; i < incrementsPerPulse; ++i)
 	{
-		/* for 6289, results become unstable if upPeriod or downPeriod ever drops below about 1 usec */
+		/* For 6289, results become nonlinear if upPeriod or downPeriod ever drops below about 1 usec.
+			Also, the PWM output is not linear unless you keep (upPeriod + downPeriod) constant. */
 		unsigned upPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * i;
 		unsigned downPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * (incrementsPerPulse - i);
 		unsigned actualUpPeriod, actualDownPeriod;
@@ -88,18 +99,17 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 		nominalCodes.push_back((0. * actualUpPeriod + static_cast<double>(maxData) * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
 		measuredCodes.push_back(mean);
 	}
-	std::vector<double> polynomial = fitPolynomial(measuredCodes, nominalCodes, maxData / 2.);
+	Polynomial fit;
+	fit.expansionOrigin = maxData / 2;
+	fit.coefficients = fitPolynomial(measuredCodes, nominalCodes, fit.expansionOrigin);
 	std::cout << "polynomial fit:\n";
+	std::cout << "\torigin = " << fit.expansionOrigin << "\n";
 	unsigned j;
-	for(j = 0; j < polynomial.size(); ++j)
-		std::cout << "\t" << polynomial.at(j);
-	std::cout << std::endl;
-	CalibrationSet calibration;
-	return calibration;
+	for(j = 0; j < fit.coefficients.size(); ++j)
+		std::cout << "\torder "<< j << " = " << fit.coefficients.at(j) << "\n";
+	std::cout << std::flush;
+	return fit;
 }
-
-// Private functions
-
 
 // References
 
@@ -173,7 +183,6 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 
 NIMSeries::EEPROM::EEPROM(boost::shared_ptr<comedi::Device> dev): _dev(dev)
 {
-
 }
 
 float NIMSeries::EEPROM::referenceVoltage() const

@@ -18,6 +18,7 @@
 #define _NI_M_SERIES_CALIBRATOR_HPP
 
 #include "calibrator.hpp"
+#include "calibrator_misc.hpp"
 #include <string>
 #include <vector>
 
@@ -32,6 +33,7 @@ namespace NIMSeries
 		virtual std::vector<std::string> supportedDeviceNames() const;
 		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
 	private:
+		Polynomial calibrateNonlinearity();
 		boost::shared_ptr<comedi::Device> _dev;
 	};
 
