@@ -52,27 +52,24 @@ std::vector<std::string> NIMSeries::Calibrator::supportedDeviceNames() const
 
 CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device> dev)
 {
-	std::cerr << __FUNCTION__ << ": " << dev->boardName() << std::endl;
 	_dev = dev;
-	NIMSeries::EEPROM eeprom(dev);
-	std::cout << "EEPROM says onboard voltage reference is " << eeprom.referenceVoltage() << " volts." << std::endl;
-
-	Polynomial nonlinearityCorrection = calibrateNonlinearity();
+	_references.reset(new NIMSeries::References(_dev));
+	Polynomial nonlinearityCorrection = calibrateAINonlinearity();
+	const unsigned numAIRanges = _dev->getNRanges(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
+	std::vector<Polynomial> AICalibrations(numAIRanges);
+	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
 	CalibrationSet calibration;
 	return calibration;
 }
 
 // Private functions
 
-Polynomial NIMSeries::Calibrator::calibrateNonlinearity()
+Polynomial NIMSeries::Calibrator::calibrateAINonlinearity()
 {
-	NIMSeries::References references(_dev);
-	references.setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
+	_references->setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	static const int masterClockPeriodNanoSec = 50;
 	static const int pulseWidthIncrement = 0x20;
 	static const int incrementsPerPulse = 30;
-	static const int settleNanoSec = 1000000;
-	static const int numSamples = 10000;
 	int i;
 	std::vector<double> nominalCodes;
 	std::vector<double> measuredCodes;
@@ -84,14 +81,12 @@ Polynomial NIMSeries::Calibrator::calibrateNonlinearity()
 		unsigned upPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * i;
 		unsigned downPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * (incrementsPerPulse - i);
 		unsigned actualUpPeriod, actualDownPeriod;
-		references.setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
+		_references->setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
 		if(upPeriod != actualUpPeriod || downPeriod != actualDownPeriod)
 		{
 			std::cerr << __FUNCTION__ << ": uh-oh, we must have gotten the master clock period wrong?" << std::endl;
 		}
-		std::vector<lsampl_t> rawData = references.readReference(numSamples, 0, settleNanoSec);
-		std::vector<double> readings(rawData.size());
-		std::copy(rawData.begin(), rawData.end(), readings.begin());
+		std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
 		std::cout << "i = " << i << "\n";
 		double mean = estimateMean(readings);
 		std::cout << "\testimate of mean = " << mean << "\n";
@@ -109,6 +104,38 @@ Polynomial NIMSeries::Calibrator::calibrateNonlinearity()
 		std::cout << "\torder "<< j << " = " << fit.coefficients.at(j) << "\n";
 	std::cout << std::flush;
 	return fit;
+}
+
+Polynomial NIMSeries::Calibrator::calibrateAIBaseRange(const Polynomial &nonlinearityCorrection)
+{
+	_references->setReference(References::POS_CAL_GROUND, References::NEG_CAL_GROUND);
+	std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
+	const double measuredGroundCode = estimateMean(readings);
+	const double linearizedGroundCode = nonlinearityCorrection.output(measuredGroundCode);
+
+	_references->setReference(References::POS_CAL_REF, References::NEG_CAL_GROUND);
+	readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
+	const double measuredReferenceCode = estimateMean(readings);
+	const double linearizedReferenceCode = nonlinearityCorrection.output(measuredReferenceCode);
+
+	NIMSeries::EEPROM eeprom(_dev);
+	const double referenceVoltage = eeprom.referenceVoltage();
+	const double gain = referenceVoltage / (linearizedReferenceCode - linearizedGroundCode);
+	Polynomial fullCorrection = nonlinearityCorrection;
+	unsigned i;
+	for(i = 0; i < fullCorrection.coefficients.size(); ++i)
+	{
+		fullCorrection.coefficients.at(i) *= gain;
+	}
+	const double offset = fullCorrection.output(measuredGroundCode);
+	fullCorrection.coefficients.at(0) -= offset;
+
+	std::cout << "eeprom reference=" << referenceVoltage << std::endl;
+	std::cout << "measuredGroundCode=" << measuredGroundCode << " linearizedGroundCode=" << linearizedGroundCode << std::endl;
+	std::cout << "measuredReferenceCode=" << measuredReferenceCode << " linearizedReferenceCode=" << linearizedReferenceCode << std::endl;
+	std::cout << "fullCorrection(measuredGroundCode)=" << fullCorrection.output(measuredGroundCode) << std::endl;
+	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection.output(measuredReferenceCode) << std::endl;
+	return fullCorrection;
 }
 
 // References
@@ -179,6 +206,13 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	return _dev->dataReadN(ADSubdev, 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF, numSamples);
 }
 
+std::vector<double> NIMSeries::References::readReferenceDouble(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const
+{
+	std::vector<lsampl_t> rawData = readReference(numSamples, inputRange, settleNanoSec);
+	std::vector<double> readings(rawData.size());
+	std::copy(rawData.begin(), rawData.end(), readings.begin());
+	return readings;
+}
 // EEPROM
 
 NIMSeries::EEPROM::EEPROM(boost::shared_ptr<comedi::Device> dev): _dev(dev)

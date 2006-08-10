@@ -29,6 +29,12 @@ double estimateMean(const std::vector<double> &samples)
 	return gsl_stats_mean(&samples.at(0), 1, samples.size());
 }
 
+double estimateStandardDeviation(const std::vector<double> &samples, double mean)
+{
+	double value = gsl_stats_variance_m(&samples.at(0), 1, samples.size(), mean);
+	return std::sqrt(value);
+}
+
 double estimateStandardDeviationOfMean(const std::vector<double> &samples, double mean)
 {
 	double value = gsl_stats_variance_m(&samples.at(0), 1, samples.size(), mean);

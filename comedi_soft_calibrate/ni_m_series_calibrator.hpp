@@ -24,19 +24,6 @@
 
 namespace NIMSeries
 {
-	/* Calibrator for National Instruments M-Series boards. */
-	class Calibrator: public ::Calibrator
-	{
-	public:
-		Calibrator();
-		virtual std::string supportedDriverName() const {return "ni_pcimio";}
-		virtual std::vector<std::string> supportedDeviceNames() const;
-		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
-	private:
-		Polynomial calibrateNonlinearity();
-		boost::shared_ptr<comedi::Device> _dev;
-	};
-
 	class References
 	{
 	public:
@@ -60,8 +47,28 @@ namespace NIMSeries
 		void setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns = 0, unsigned *actual_low_ns = 0);
 		void setReference(enum PositiveCalSource posSource, enum NegativeCalSource NegSource);
 		std::vector<lsampl_t> readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
+		std::vector<double> readReferenceDouble(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
 	private:
 		boost::shared_ptr<comedi::Device> _dev;
+	};
+
+	/* Calibrator for National Instruments M-Series boards. */
+	class Calibrator: public ::Calibrator
+	{
+	public:
+		Calibrator();
+		virtual std::string supportedDriverName() const {return "ni_pcimio";}
+		virtual std::vector<std::string> supportedDeviceNames() const;
+		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
+	private:
+		static const unsigned numSamples = 10000;
+		static const int settleNanoSec = 1000000;
+		static const unsigned baseRange = 0;
+		Polynomial calibrateAINonlinearity();
+		// calibrate the one range that can actually read the onboard voltage reference directly
+		Polynomial calibrateAIBaseRange(const Polynomial &nonlinearityCorrection);
+		boost::shared_ptr<comedi::Device> _dev;
+		boost::shared_ptr<References> _references;
 	};
 
 	class EEPROM

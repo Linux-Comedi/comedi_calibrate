@@ -122,6 +122,18 @@ void comedi::Device::doInsn(comedi_insn *instruction)
 	}
 }
 
+unsigned comedi::Device::getNRanges(unsigned subdevice, unsigned channel) const
+{
+	int retval = comedi_get_n_ranges(_dev, subdevice, channel);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_get_n_ranges() failed.";
+		throw std::runtime_error(message.str());
+	}
+	return retval;
+}
+
 lsampl_t comedi::Device::maxData(unsigned subdevice, unsigned channel) const
 {
 	lsampl_t value = comedi_get_maxdata(_dev, subdevice, 0);

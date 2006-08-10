@@ -36,6 +36,7 @@ namespace comedi
 		std::vector<lsampl_t> dataReadN(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, unsigned numSamples);
 		void dataReadHint(unsigned subdevice, unsigned channel, unsigned range, unsigned aref);
 		void doInsn(comedi_insn *instruction);
+		unsigned getNRanges(unsigned subdevice, unsigned channel = 0) const;
 		lsampl_t maxData(unsigned subdevice, unsigned channel = 0) const;
 	private:
 		comedi_t *_dev;
