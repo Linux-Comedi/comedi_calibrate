@@ -68,7 +68,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 		if(i == baseRange) continue;
 		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
 		if(cRange->max < 1.99) continue;
-		std::cout << "calibrating range " << i << " ..." << std::flush;
+		std::cout << "calibrating range " << i << " ..." << std::endl;
 		AICalibrations.at(i) = calibrateAIRange(PWMCalibration, nonlinearityCorrection,
 			NIMSeries::References::POS_CAL_PWM_10V, i);
 		std::cout << "done." << std::endl;
@@ -95,12 +95,7 @@ Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigne
 	Polynomial fit;
 	fit.expansionOrigin = maxData / 2;
 	fit.coefficients = fitPolynomial(measuredCodes, nominalCodes, fit.expansionOrigin, 3);
-	std::cout << "polynomial fit:\n";
-	std::cout << "\torigin = " << fit.expansionOrigin << "\n";
-	unsigned j;
-	for(j = 0; j < fit.coefficients.size(); ++j)
-		std::cout << "\torder "<< j << " = " << fit.coefficients.at(j) << "\n";
-	std::cout << std::flush;
+	printPolynomial(fit);
 	return fit;
 }
 
@@ -126,7 +121,7 @@ Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibrat
 
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	const comedi_range *cRange = _dev->getRange(ADSubdev, 0, range);
-	const unsigned upTicks = lrint(inversePWMCalibration(cRange->max));
+	const unsigned upTicks = lrint(inversePWMCalibration(cRange->max * 0.8));
 	setPWMUpTicks(upTicks);
 	const double referenceVoltage = PWMCalibration(upTicks);
 	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection, posSource, referenceVoltage, range);
@@ -215,6 +210,7 @@ Polynomial NIMSeries::Calibrator::calibrateGainAndOffset(const Polynomial &nonli
 	std::cout << "measuredReferenceCode=" << measuredReferenceCode << " linearizedReferenceCode=" << linearizedReferenceCode << std::endl;
 	std::cout << "fullCorrection(measuredGroundCode)=" << fullCorrection(measuredGroundCode) << std::endl;
 	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection(measuredReferenceCode) << std::endl;
+	printPolynomial(fullCorrection);
 	return fullCorrection;
 }
 

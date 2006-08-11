@@ -36,4 +36,6 @@ public:
 private:
 };
 
+void printPolynomial(const Polynomial &polynomial);
+
 #endif	// _CALIBRATOR_MISC_HPP

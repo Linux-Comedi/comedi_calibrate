@@ -21,6 +21,7 @@
 #include <gsl/gsl_multifit.h>
 #include <gsl/gsl_statistics_double.h>
 #include <gsl/gsl_vector.h>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 
@@ -97,3 +98,15 @@ unsigned Polynomial::order() const
 	if(coefficients.size() < 1) throw std::invalid_argument(__FUNCTION__);
 	return coefficients.size() - 1;
 }
+
+void printPolynomial(const Polynomial &polynomial)
+{
+	std::cout << "Polynomial:\n";
+	std::cout << "\torder = " << polynomial.order() << "\n";
+	std::cout << "\texpansion origin = " << polynomial.expansionOrigin << "\n";
+	unsigned j;
+	for(j = 0; j < polynomial.coefficients.size(); ++j)
+		std::cout << "\torder " << j << " coefficient = " << polynomial.coefficients.at(j) << "\n";
+	std::cout << std::flush;
+}
+
