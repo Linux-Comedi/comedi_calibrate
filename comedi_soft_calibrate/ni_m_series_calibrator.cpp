@@ -69,7 +69,6 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 
 Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization)
 {
-	_references->setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	lsampl_t maxData = _dev->maxData(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
 	std::map<unsigned, double>::const_iterator it;
 	std::vector<double> nominalCodes;
@@ -127,6 +126,7 @@ Polynomial NIMSeries::Calibrator::calibrateAIBaseRange(const Polynomial &nonline
 
 std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM() const
 {
+	_references->setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	std::map<unsigned, double> results;
 	const unsigned numCalibrationPoints = PWMPeriodTicks / minimumPWMPulseTicks - 1;
 	unsigned i;
