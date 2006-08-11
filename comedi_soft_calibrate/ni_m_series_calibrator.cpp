@@ -167,10 +167,9 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 		upTicks.push_back(it->first);
 		measuredVoltages.push_back(baseRangeCalibration(it->second));
 	}
-	//FIXME this only needs to be a 1st order fit
 	Polynomial fit;
 	fit.expansionOrigin = PWMPeriodTicks / 2;
-	fit.coefficients = fitPolynomial(measuredVoltages, upTicks, fit.expansionOrigin, 1);
+	fit.coefficients = fitPolynomial(upTicks, measuredVoltages, fit.expansionOrigin, 1);
 	std::cout << "sanity check:\n";
 	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
 	{
