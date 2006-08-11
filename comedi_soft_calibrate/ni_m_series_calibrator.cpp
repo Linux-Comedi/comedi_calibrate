@@ -58,6 +58,9 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	const unsigned numAIRanges = _dev->getNRanges(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
 	std::vector<Polynomial> AICalibrations(numAIRanges);
 	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
+	unsigned i;
+// 	for(i = 0; i < numAIRanges; ++i)
+
 	CalibrationSet calibration;
 	return calibration;
 }
@@ -69,7 +72,7 @@ Polynomial NIMSeries::Calibrator::calibrateAINonlinearity()
 	_references->setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	static const int masterClockPeriodNanoSec = 50;
 	static const int pulseWidthIncrement = 0x20;
-	static const int incrementsPerPulse = 30;
+	static const int incrementsPerPulse = 20;
 	int i;
 	std::vector<double> nominalCodes;
 	std::vector<double> measuredCodes;
@@ -111,12 +114,12 @@ Polynomial NIMSeries::Calibrator::calibrateAIBaseRange(const Polynomial &nonline
 	_references->setReference(References::POS_CAL_GROUND, References::NEG_CAL_GROUND);
 	std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
 	const double measuredGroundCode = estimateMean(readings);
-	const double linearizedGroundCode = nonlinearityCorrection.output(measuredGroundCode);
+	const double linearizedGroundCode = nonlinearityCorrection(measuredGroundCode);
 
 	_references->setReference(References::POS_CAL_REF, References::NEG_CAL_GROUND);
 	readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
 	const double measuredReferenceCode = estimateMean(readings);
-	const double linearizedReferenceCode = nonlinearityCorrection.output(measuredReferenceCode);
+	const double linearizedReferenceCode = nonlinearityCorrection(measuredReferenceCode);
 
 	NIMSeries::EEPROM eeprom(_dev);
 	const double referenceVoltage = eeprom.referenceVoltage();
@@ -127,14 +130,14 @@ Polynomial NIMSeries::Calibrator::calibrateAIBaseRange(const Polynomial &nonline
 	{
 		fullCorrection.coefficients.at(i) *= gain;
 	}
-	const double offset = fullCorrection.output(measuredGroundCode);
+	const double offset = fullCorrection(measuredGroundCode);
 	fullCorrection.coefficients.at(0) -= offset;
 
 	std::cout << "eeprom reference=" << referenceVoltage << std::endl;
 	std::cout << "measuredGroundCode=" << measuredGroundCode << " linearizedGroundCode=" << linearizedGroundCode << std::endl;
 	std::cout << "measuredReferenceCode=" << measuredReferenceCode << " linearizedReferenceCode=" << linearizedReferenceCode << std::endl;
-	std::cout << "fullCorrection(measuredGroundCode)=" << fullCorrection.output(measuredGroundCode) << std::endl;
-	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection.output(measuredReferenceCode) << std::endl;
+	std::cout << "fullCorrection(measuredGroundCode)=" << fullCorrection(measuredGroundCode) << std::endl;
+	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection(measuredReferenceCode) << std::endl;
 	return fullCorrection;
 }
 

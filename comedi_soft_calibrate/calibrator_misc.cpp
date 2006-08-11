@@ -78,7 +78,7 @@ const std::vector<double> fitPolynomial(const std::vector<double> &x, const std:
 Polynomial::Polynomial(): expansionOrigin(0.)
 {}
 
-double Polynomial::output(double input) const
+double Polynomial::operator()(double input) const
 {
 	double value = 0.;
 	double term = 1.;

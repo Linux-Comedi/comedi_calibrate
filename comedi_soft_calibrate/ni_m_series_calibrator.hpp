@@ -87,6 +87,12 @@ namespace NIMSeries
 		float readFloat(unsigned startAddress) const;
 		boost::shared_ptr<comedi::Device> _dev;
 	};
+	// class for converting pwm up/down time into calibrated voltage
+	class PWMVoltage
+	{
+	public:
+	private:
+	};
 };
 
 #endif	// _NI_M_SERIES_CALIBRATOR_HPP

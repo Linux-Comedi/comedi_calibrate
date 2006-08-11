@@ -28,7 +28,7 @@ class Polynomial
 {
 public:
 	Polynomial();
-	double output(double input) const;
+	double operator()(double input) const;
 	std::vector<double> coefficients;
 	double expansionOrigin;
 private:
