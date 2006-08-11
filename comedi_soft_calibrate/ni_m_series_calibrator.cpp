@@ -82,7 +82,7 @@ Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigne
 	}
 	Polynomial fit;
 	fit.expansionOrigin = maxData / 2;
-	fit.coefficients = fitPolynomial(measuredCodes, nominalCodes, fit.expansionOrigin);
+	fit.coefficients = fitPolynomial(measuredCodes, nominalCodes, fit.expansionOrigin, 3);
 	std::cout << "polynomial fit:\n";
 	std::cout << "\torigin = " << fit.expansionOrigin << "\n";
 	unsigned j;
@@ -165,7 +165,7 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 	//FIXME this only needs to be a 1st order fit
 	Polynomial fit;
 	fit.expansionOrigin = PWMPeriodTicks / 2;
-	fit.coefficients = fitPolynomial(measuredVoltages, upTicks, fit.expansionOrigin);
+	fit.coefficients = fitPolynomial(measuredVoltages, upTicks, fit.expansionOrigin, 1);
 	return fit;
 }
 
