@@ -37,6 +37,7 @@ namespace comedi
 		void dataReadHint(unsigned subdevice, unsigned channel, unsigned range, unsigned aref);
 		void doInsn(comedi_insn *instruction);
 		unsigned getNRanges(unsigned subdevice, unsigned channel = 0) const;
+		const comedi_range* getRange(unsigned subdevice, unsigned channel, unsigned range) const;
 		lsampl_t maxData(unsigned subdevice, unsigned channel = 0) const;
 	private:
 		comedi_t *_dev;

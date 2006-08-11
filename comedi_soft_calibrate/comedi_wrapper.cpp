@@ -134,6 +134,18 @@ unsigned comedi::Device::getNRanges(unsigned subdevice, unsigned channel) const
 	return retval;
 }
 
+const comedi_range* comedi::Device::getRange(unsigned subdevice, unsigned channel, unsigned range) const
+{
+	comedi_range *cRange = comedi_get_range(_dev, subdevice, channel, range);
+	if(cRange == 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_get_range() failed.";
+		throw std::runtime_error(message.str());
+	}
+	return cRange;
+}
+
 lsampl_t comedi::Device::maxData(unsigned subdevice, unsigned channel) const
 {
 	lsampl_t value = comedi_get_maxdata(_dev, subdevice, 0);

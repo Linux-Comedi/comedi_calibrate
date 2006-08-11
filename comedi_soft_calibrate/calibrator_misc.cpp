@@ -91,3 +91,9 @@ double Polynomial::operator()(double input) const
 	}
 	return value;
 }
+
+unsigned Polynomial::order() const
+{
+	if(coefficients.size() < 1) throw std::invalid_argument(__FUNCTION__);
+	return coefficients.size() - 1;
+}

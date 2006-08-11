@@ -56,11 +56,23 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	_references.reset(new NIMSeries::References(_dev));
 	std::map<unsigned, double> PWMCharacterization = characterizePWM();
 	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
-	const unsigned numAIRanges = _dev->getNRanges(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
 	std::vector<Polynomial> AICalibrations(numAIRanges);
 	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
 	Polynomial PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(baseRange));
-
+	// calibrate low-gain ranges
+	unsigned i;
+	for(i = 0; i < numAIRanges; ++i)
+	{
+		if(i == baseRange) continue;
+		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
+		if(cRange->max < 1.99) continue;
+		std::cout << "calibrating range " << i << " ..." << std::flush;
+		AICalibrations.at(i) = calibrateAIRange(PWMCalibration, nonlinearityCorrection,
+			NIMSeries::References::POS_CAL_PWM_10V, i);
+		std::cout << "done." << std::endl;
+	}
 	CalibrationSet calibration;
 	return calibration;
 }
@@ -94,37 +106,33 @@ Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigne
 
 Polynomial NIMSeries::Calibrator::calibrateAIBaseRange(const Polynomial &nonlinearityCorrection)
 {
-	_references->setReference(References::POS_CAL_GROUND, References::NEG_CAL_GROUND);
-	std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
-	const double measuredGroundCode = estimateMean(readings);
-	const double linearizedGroundCode = nonlinearityCorrection(measuredGroundCode);
-
-	_references->setReference(References::POS_CAL_REF, References::NEG_CAL_GROUND);
-	readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
-	const double measuredReferenceCode = estimateMean(readings);
-	const double linearizedReferenceCode = nonlinearityCorrection(measuredReferenceCode);
-
 	NIMSeries::EEPROM eeprom(_dev);
 	const double referenceVoltage = eeprom.referenceVoltage();
-	const double gain = referenceVoltage / (linearizedReferenceCode - linearizedGroundCode);
-	Polynomial fullCorrection = nonlinearityCorrection;
-	unsigned i;
-	for(i = 0; i < fullCorrection.coefficients.size(); ++i)
-	{
-		fullCorrection.coefficients.at(i) *= gain;
-	}
-	const double offset = fullCorrection(measuredGroundCode);
-	fullCorrection.coefficients.at(0) -= offset;
 
-	std::cout << "eeprom reference=" << referenceVoltage << std::endl;
-	std::cout << "measuredGroundCode=" << measuredGroundCode << " linearizedGroundCode=" << linearizedGroundCode << std::endl;
-	std::cout << "measuredReferenceCode=" << measuredReferenceCode << " linearizedReferenceCode=" << linearizedReferenceCode << std::endl;
-	std::cout << "fullCorrection(measuredGroundCode)=" << fullCorrection(measuredGroundCode) << std::endl;
-	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection(measuredReferenceCode) << std::endl;
+	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection,
+		References::POS_CAL_REF, referenceVoltage, baseRange);
 	return fullCorrection;
 }
 
-std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM() const
+Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibration, const Polynomial &nonlinearityCorrection,
+	enum NIMSeries::References::PositiveCalSource posSource, unsigned range)
+{
+	assert(PWMCalibration.order() == 1);
+	Polynomial inversePWMCalibration;
+	inversePWMCalibration.expansionOrigin = PWMCalibration.coefficients.at(0);
+	inversePWMCalibration.coefficients.at(0) = PWMCalibration.expansionOrigin;
+	inversePWMCalibration.coefficients.at(1) = 1. / PWMCalibration.coefficients.at(1);
+
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const comedi_range *cRange = _dev->getRange(ADSubdev, 0, range);
+	const unsigned upTicks = lrint(inversePWMCalibration(cRange->max));
+	setPWMUpTicks(upTicks);
+	const double referenceVoltage = PWMCalibration(upTicks);
+	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection, posSource, referenceVoltage, range);
+	return fullCorrection;
+}
+
+std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM()
 {
 	_references->setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
 	std::map<unsigned, double> results;
@@ -135,11 +143,7 @@ std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM() const
 		/* For 6289, results become nonlinear if upPeriod or downPeriod ever drops below about 1 usec.
 			Also, the PWM output is not linear unless you keep (upPeriod + downPeriod) constant. */
 		const unsigned upTicks = minimumPWMPulseTicks * i;
-		const unsigned upPeriod = upTicks * masterClockPeriodNanoSec;
-		const unsigned downPeriod = (PWMPeriodTicks - upTicks) * masterClockPeriodNanoSec;
-		unsigned actualUpPeriod, actualDownPeriod;
-		_references->setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
-		assert(upPeriod == actualUpPeriod && downPeriod == actualDownPeriod);
+		setPWMUpTicks(upTicks);
 		std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
 		std::cout << "i = " << i << "\n";
 		double mean = estimateMean(readings);
@@ -166,7 +170,52 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 	Polynomial fit;
 	fit.expansionOrigin = PWMPeriodTicks / 2;
 	fit.coefficients = fitPolynomial(measuredVoltages, upTicks, fit.expansionOrigin, 1);
+	std::cout << "sanity check:\n";
+	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
+	{
+		std::cout << "upTicks=" << it->first << " code=" << it->second <<
+			" PWMCal=" << fit(it->first) << " baseRangeCal=" << baseRangeCalibration(it->second) << std::endl;
+	}
 	return fit;
+}
+
+void NIMSeries::Calibrator::setPWMUpTicks(unsigned upTicks)
+{
+	const unsigned upPeriod = upTicks * masterClockPeriodNanoSec;
+	const unsigned downPeriod = (PWMPeriodTicks - upTicks) * masterClockPeriodNanoSec;
+	unsigned actualUpPeriod, actualDownPeriod;
+	_references->setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
+	assert(upPeriod == actualUpPeriod && downPeriod == actualDownPeriod);
+}
+
+Polynomial NIMSeries::Calibrator::calibrateGainAndOffset(const Polynomial &nonlinearityCorrection,
+	enum NIMSeries::References::PositiveCalSource posReferenceSource, double referenceVoltage, unsigned range)
+{
+	_references->setReference(References::POS_CAL_GROUND, References::NEG_CAL_GROUND);
+	std::vector<double> readings = _references->readReferenceDouble(numSamples, range, settleNanoSec);
+	const double measuredGroundCode = estimateMean(readings);
+	const double linearizedGroundCode = nonlinearityCorrection(measuredGroundCode);
+
+	_references->setReference(posReferenceSource, References::NEG_CAL_GROUND);
+	readings = _references->readReferenceDouble(numSamples, range, settleNanoSec);
+	const double measuredReferenceCode = estimateMean(readings);
+	const double linearizedReferenceCode = nonlinearityCorrection(measuredReferenceCode);
+
+	const double gain = referenceVoltage / (linearizedReferenceCode - linearizedGroundCode);
+	Polynomial fullCorrection = nonlinearityCorrection;
+	unsigned i;
+	for(i = 0; i < fullCorrection.coefficients.size(); ++i)
+	{
+		fullCorrection.coefficients.at(i) *= gain;
+	}
+	const double offset = fullCorrection(measuredGroundCode);
+	fullCorrection.coefficients.at(0) -= offset;
+	std::cout << "referenceVoltage=" << referenceVoltage << std::endl;
+	std::cout << "measuredGroundCode=" << measuredGroundCode << " linearizedGroundCode=" << linearizedGroundCode << std::endl;
+	std::cout << "measuredReferenceCode=" << measuredReferenceCode << " linearizedReferenceCode=" << linearizedReferenceCode << std::endl;
+	std::cout << "fullCorrection(measuredGroundCode)=" << fullCorrection(measuredGroundCode) << std::endl;
+	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection(measuredReferenceCode) << std::endl;
+	return fullCorrection;
 }
 
 // References
@@ -223,7 +272,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 		message << __FUNCTION__ << ": invalid settleNanoSec=" << settleNanoSec << " .";
 		throw std::invalid_argument(message.str());
 	}
-	unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF);
 	struct timespec req;
 	req.tv_sec = 0;

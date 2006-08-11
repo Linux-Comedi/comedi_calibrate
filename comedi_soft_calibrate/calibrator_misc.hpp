@@ -29,6 +29,8 @@ class Polynomial
 public:
 	Polynomial();
 	double operator()(double input) const;
+	unsigned order() const;
+
 	std::vector<double> coefficients;
 	double expansionOrigin;
 private:
