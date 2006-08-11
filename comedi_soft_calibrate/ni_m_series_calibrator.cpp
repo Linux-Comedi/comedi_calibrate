@@ -120,6 +120,7 @@ Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibrat
 	assert(PWMCalibration.order() == 1);
 	Polynomial inversePWMCalibration;
 	inversePWMCalibration.expansionOrigin = PWMCalibration.coefficients.at(0);
+	inversePWMCalibration.coefficients.resize(2);
 	inversePWMCalibration.coefficients.at(0) = PWMCalibration.expansionOrigin;
 	inversePWMCalibration.coefficients.at(1) = 1. / PWMCalibration.coefficients.at(1);
 
