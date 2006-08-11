@@ -54,12 +54,12 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 {
 	_dev = dev;
 	_references.reset(new NIMSeries::References(_dev));
-	Polynomial nonlinearityCorrection = calibrateAINonlinearity();
+	std::map<unsigned, double> PWMCharacterization = characterizePWM();
+	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
 	const unsigned numAIRanges = _dev->getNRanges(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
 	std::vector<Polynomial> AICalibrations(numAIRanges);
 	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
-	unsigned i;
-// 	for(i = 0; i < numAIRanges; ++i)
+	Polynomial PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(baseRange));
 
 	CalibrationSet calibration;
 	return calibration;
@@ -67,35 +67,19 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 
 // Private functions
 
-Polynomial NIMSeries::Calibrator::calibrateAINonlinearity()
+Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization)
 {
 	_references->setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
-	static const int masterClockPeriodNanoSec = 50;
-	static const int pulseWidthIncrement = 0x20;
-	static const int incrementsPerPulse = 20;
-	int i;
+	lsampl_t maxData = _dev->maxData(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
+	std::map<unsigned, double>::const_iterator it;
 	std::vector<double> nominalCodes;
 	std::vector<double> measuredCodes;
-	lsampl_t maxData = _dev->maxData(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
-	for(i = 1; i < incrementsPerPulse; ++i)
+	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
 	{
-		/* For 6289, results become nonlinear if upPeriod or downPeriod ever drops below about 1 usec.
-			Also, the PWM output is not linear unless you keep (upPeriod + downPeriod) constant. */
-		unsigned upPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * i;
-		unsigned downPeriod = masterClockPeriodNanoSec * pulseWidthIncrement * (incrementsPerPulse - i);
-		unsigned actualUpPeriod, actualDownPeriod;
-		_references->setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
-		if(upPeriod != actualUpPeriod || downPeriod != actualDownPeriod)
-		{
-			std::cerr << __FUNCTION__ << ": uh-oh, we must have gotten the master clock period wrong?" << std::endl;
-		}
-		std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
-		std::cout << "i = " << i << "\n";
-		double mean = estimateMean(readings);
-		std::cout << "\testimate of mean = " << mean << "\n";
-		std::cout << "\testimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
-		nominalCodes.push_back((0. * actualUpPeriod + static_cast<double>(maxData) * actualDownPeriod) / (actualUpPeriod + actualDownPeriod));
-		measuredCodes.push_back(mean);
+		const unsigned upTicks = it->first;
+		const unsigned downTicks = PWMPeriodTicks - upTicks;
+		nominalCodes.push_back((0. * upTicks + static_cast<double>(maxData) * downTicks) / PWMPeriodTicks);
+		measuredCodes.push_back(it->second);
 	}
 	Polynomial fit;
 	fit.expansionOrigin = maxData / 2;
@@ -139,6 +123,50 @@ Polynomial NIMSeries::Calibrator::calibrateAIBaseRange(const Polynomial &nonline
 	std::cout << "fullCorrection(measuredGroundCode)=" << fullCorrection(measuredGroundCode) << std::endl;
 	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection(measuredReferenceCode) << std::endl;
 	return fullCorrection;
+}
+
+std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM() const
+{
+	std::map<unsigned, double> results;
+	const unsigned numCalibrationPoints = PWMPeriodTicks / minimumPWMPulseTicks - 1;
+	unsigned i;
+	for(i = 1; i <= numCalibrationPoints ; ++i)
+	{
+		/* For 6289, results become nonlinear if upPeriod or downPeriod ever drops below about 1 usec.
+			Also, the PWM output is not linear unless you keep (upPeriod + downPeriod) constant. */
+		const unsigned upTicks = minimumPWMPulseTicks * i;
+		const unsigned upPeriod = upTicks * masterClockPeriodNanoSec;
+		const unsigned downPeriod = (PWMPeriodTicks - upTicks) * masterClockPeriodNanoSec;
+		unsigned actualUpPeriod, actualDownPeriod;
+		_references->setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
+		assert(upPeriod == actualUpPeriod && downPeriod == actualDownPeriod);
+		std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
+		std::cout << "i = " << i << "\n";
+		double mean = estimateMean(readings);
+		std::cout << "\testimate of mean = " << mean << "\n";
+		std::cout << "\testimate of standard deviation = " << estimateStandardDeviation(readings, mean) << "\n";
+		std::cout << "\testimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
+		results[upTicks] = mean;
+	}
+	return results;
+};
+
+Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> &PWMCharacterization,
+	const Polynomial &baseRangeCalibration)
+{
+	std::map<unsigned, double>::const_iterator it;
+	std::vector<double> upTicks;
+	std::vector<double> measuredVoltages;
+	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
+	{
+		upTicks.push_back(it->first);
+		measuredVoltages.push_back(baseRangeCalibration(it->second));
+	}
+	//FIXME this only needs to be a 1st order fit
+	Polynomial fit;
+	fit.expansionOrigin = PWMPeriodTicks / 2;
+	fit.coefficients = fitPolynomial(measuredVoltages, upTicks, fit.expansionOrigin);
+	return fit;
 }
 
 // References

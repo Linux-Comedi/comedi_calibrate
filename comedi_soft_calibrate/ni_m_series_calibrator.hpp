@@ -19,6 +19,7 @@
 
 #include "calibrator.hpp"
 #include "calibrator_misc.hpp"
+#include <map>
 #include <string>
 #include <vector>
 
@@ -64,9 +65,15 @@ namespace NIMSeries
 		static const unsigned numSamples = 10000;
 		static const int settleNanoSec = 1000000;
 		static const unsigned baseRange = 0;
-		Polynomial calibrateAINonlinearity();
+		static const int masterClockPeriodNanoSec = 50;
+		static const int minimumPWMPulseTicks = 0x20;
+		static const int PWMPeriodTicks = 20 * minimumPWMPulseTicks;
+		Polynomial calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization);
 		// calibrate the one range that can actually read the onboard voltage reference directly
 		Polynomial calibrateAIBaseRange(const Polynomial &nonlinearityCorrection);
+		Polynomial calibratePWM(const std::map<unsigned, double> &PWMCharacterization,
+			const Polynomial &baseRangeCalibration);
+		std::map<unsigned, double> characterizePWM() const;
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;
 	};
@@ -86,12 +93,6 @@ namespace NIMSeries
 		unsigned readUInt16(unsigned startAddress) const;
 		float readFloat(unsigned startAddress) const;
 		boost::shared_ptr<comedi::Device> _dev;
-	};
-	// class for converting pwm up/down time into calibrated voltage
-	class PWMVoltage
-	{
-	public:
-	private:
 	};
 };
 
