@@ -59,7 +59,9 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
 	std::vector<Polynomial> AICalibrations(numAIRanges);
+	std::cout << "calibrating base range " << baseRange << " ..." << std::endl;
 	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
+	std::cout << "done." << std::endl;
 	Polynomial PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(baseRange));
 	// calibrate low-gain ranges
 	unsigned i;
