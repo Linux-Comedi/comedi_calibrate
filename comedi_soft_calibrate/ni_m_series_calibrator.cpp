@@ -93,7 +93,7 @@ std::vector<Polynomial> NIMSeries::Calibrator::calibrateAISubdevice()
 	PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_2V, range);
 	PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(range));
 	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
-		NIMSeries::References::POS_CAL_PWM_2V, &AICalibrations, &calibrated, 0.);
+		NIMSeries::References::POS_CAL_PWM_500mV, &AICalibrations, &calibrated, 0.);
 	return AICalibrations;
 }
 
@@ -139,7 +139,8 @@ Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibrat
 
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	const comedi_range *cRange = _dev->getRange(ADSubdev, 0, range);
-	const unsigned upTicks = lrint(inversePWMCalibration(cRange->max * 0.9));
+	unsigned upTicks = lrint(inversePWMCalibration(cRange->max * 0.9));
+	if(upTicks + minimumPWMPulseTicks > PWMPeriodTicks) upTicks = PWMPeriodTicks - minimumPWMPulseTicks;
 	setPWMUpTicks(upTicks);
 	const double referenceVoltage = PWMCalibration(upTicks);
 	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection, posSource, referenceVoltage, range);
@@ -170,7 +171,7 @@ std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM(enum NIMSeries
 };
 
 Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> &PWMCharacterization,
-	const Polynomial &baseRangeCalibration)
+	const Polynomial &ADRangeCalibration)
 {
 	std::map<unsigned, double>::const_iterator it;
 	std::vector<double> upTicks;
@@ -178,7 +179,7 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
 	{
 		upTicks.push_back(it->first);
-		measuredVoltages.push_back(baseRangeCalibration(it->second));
+		measuredVoltages.push_back(ADRangeCalibration(it->second));
 	}
 	Polynomial fit;
 	fit.expansionOrigin = PWMPeriodTicks / 2;
@@ -187,7 +188,7 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
 	{
 		std::cout << "upTicks=" << it->first << " code=" << it->second <<
-			" PWMCal=" << fit(it->first) << " baseRangeCal=" << baseRangeCalibration(it->second) << std::endl;
+			" PWMCal=" << fit(it->first) << " ADRangeCal=" << ADRangeCalibration(it->second) << std::endl;
 	}
 	return fit;
 }

@@ -63,11 +63,11 @@ namespace NIMSeries
 		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
 	private:
 		static const unsigned numSamples = 10000;
-		static const int settleNanoSec = 1000000;
+		static const unsigned settleNanoSec = 1000000;
 		static const unsigned baseRange = 0;
-		static const int masterClockPeriodNanoSec = 50;
-		static const int minimumPWMPulseTicks = 0x20;
-		static const int PWMPeriodTicks = 20 * minimumPWMPulseTicks;
+		static const unsigned masterClockPeriodNanoSec = 50;
+		static const unsigned minimumPWMPulseTicks = 0x20;
+		static const unsigned PWMPeriodTicks = 20 * minimumPWMPulseTicks;
 
 		std::vector<Polynomial> calibrateAISubdevice();
 		Polynomial calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization);
