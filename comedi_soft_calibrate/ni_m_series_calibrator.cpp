@@ -185,10 +185,14 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 	fit.expansionOrigin = PWMPeriodTicks / 2;
 	fit.coefficients = fitPolynomial(upTicks, measuredVoltages, fit.expansionOrigin, 1);
 	std::cout << "sanity check:\n";
+	const double approxVoltsPerBit = ADRangeCalibration(1) - ADRangeCalibration(0);
 	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
 	{
+		const double PWMCal = fit(it->first);
+		const double ADRangeCal = ADRangeCalibration(it->second);
+		const double LSBError = (ADRangeCal - PWMCal) / approxVoltsPerBit;
 		std::cout << "upTicks=" << it->first << " code=" << it->second <<
-			" PWMCal=" << fit(it->first) << " ADRangeCal=" << ADRangeCalibration(it->second) << std::endl;
+			" PWMCal=" << PWMCal << " ADRangeCal=" << ADRangeCal << " LSBError=" << LSBError << std::endl;
 	}
 	return fit;
 }
