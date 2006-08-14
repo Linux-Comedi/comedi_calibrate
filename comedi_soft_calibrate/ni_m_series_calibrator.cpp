@@ -54,32 +54,48 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 {
 	_dev = dev;
 	_references.reset(new NIMSeries::References(_dev));
-	std::map<unsigned, double> PWMCharacterization = characterizePWM();
-	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
-	std::vector<Polynomial> AICalibrations(numAIRanges);
-	std::cout << "calibrating base range " << baseRange << " ..." << std::endl;
-	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
-	std::cout << "done." << std::endl;
-	Polynomial PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(baseRange));
-	// calibrate low-gain ranges
-	unsigned i;
-	for(i = 0; i < numAIRanges; ++i)
-	{
-		if(i == baseRange) continue;
-		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
-		if(cRange->max < 1.99) continue;
-		std::cout << "calibrating range " << i << " ..." << std::endl;
-		AICalibrations.at(i) = calibrateAIRange(PWMCalibration, nonlinearityCorrection,
-			NIMSeries::References::POS_CAL_PWM_10V, i);
-		std::cout << "done." << std::endl;
-	}
+	std::vector<Polynomial> AICalibrations = calibrateAISubdevice();
+
 	CalibrationSet calibration;
 	return calibration;
 }
 
 // Private functions
+
+std::vector<Polynomial> NIMSeries::Calibrator::calibrateAISubdevice()
+{
+	std::map<unsigned, double> PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_10V, baseRange);
+	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
+	std::vector<Polynomial> AICalibrations(numAIRanges);
+	std::vector<bool> calibrated(numAIRanges, false);
+	std::cout << "calibrating base range " << baseRange << " ..." << std::endl;
+	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
+	calibrated.at(baseRange) = true;
+	std::cout << "done." << std::endl;
+	Polynomial PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(baseRange));
+	// calibrate low-gain ranges
+	const double largeRangeThreshold = 1.99;
+	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
+		NIMSeries::References::POS_CAL_PWM_10V, &AICalibrations, &calibrated, largeRangeThreshold);
+	// calibrate medium-gain ranges
+	unsigned range = smallestCalibratedAIRangeContaining(calibrated, largeRangeThreshold);
+	assert(calibrated.at(range) == true);
+	PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_2V, range);
+	PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(range));
+	const double mediumRangeThreshold = 0.499;
+	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
+		NIMSeries::References::POS_CAL_PWM_2V, &AICalibrations, &calibrated, mediumRangeThreshold);
+	// calibrate high-gain ranges
+	range = smallestCalibratedAIRangeContaining(calibrated, mediumRangeThreshold);
+	assert(calibrated.at(range) == true);
+	PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_2V, range);
+	PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(range));
+	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
+		NIMSeries::References::POS_CAL_PWM_2V, &AICalibrations, &calibrated, 0.);
+	return AICalibrations;
+}
 
 Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization)
 {
@@ -123,16 +139,16 @@ Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibrat
 
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	const comedi_range *cRange = _dev->getRange(ADSubdev, 0, range);
-	const unsigned upTicks = lrint(inversePWMCalibration(cRange->max * 0.8));
+	const unsigned upTicks = lrint(inversePWMCalibration(cRange->max * 0.9));
 	setPWMUpTicks(upTicks);
 	const double referenceVoltage = PWMCalibration(upTicks);
 	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection, posSource, referenceVoltage, range);
 	return fullCorrection;
 }
 
-std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM()
+std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM(enum NIMSeries::References::PositiveCalSource posReferenceSource, unsigned ADRange)
 {
-	_references->setReference(NIMSeries::References::POS_CAL_PWM_10V, NIMSeries::References::NEG_CAL_GROUND);
+	_references->setReference(posReferenceSource, NIMSeries::References::NEG_CAL_GROUND);
 	std::map<unsigned, double> results;
 	const unsigned numCalibrationPoints = PWMPeriodTicks / minimumPWMPulseTicks - 1;
 	unsigned i;
@@ -142,7 +158,7 @@ std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM()
 			Also, the PWM output is not linear unless you keep (upPeriod + downPeriod) constant. */
 		const unsigned upTicks = minimumPWMPulseTicks * i;
 		setPWMUpTicks(upTicks);
-		std::vector<double> readings = _references->readReferenceDouble(numSamples, baseRange, settleNanoSec);
+		std::vector<double> readings = _references->readReferenceDouble(numSamples, ADRange, settleNanoSec);
 		std::cout << "i = " << i << "\n";
 		double mean = estimateMean(readings);
 		std::cout << "\testimate of mean = " << mean << "\n";
@@ -214,6 +230,52 @@ Polynomial NIMSeries::Calibrator::calibrateGainAndOffset(const Polynomial &nonli
 	std::cout << "fullCorrection(measuredReferenceCode)=" << fullCorrection(measuredReferenceCode) << std::endl;
 	printPolynomial(fullCorrection);
 	return fullCorrection;
+}
+
+unsigned NIMSeries::Calibrator::smallestCalibratedAIRangeContaining(const std::vector<bool> &calibrated, double rangeThreshold)
+{
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
+	unsigned i;
+	const comedi_range *smallestCRange = 0;
+	unsigned smallestRange;
+	for(i = 0; i < numAIRanges; ++i)
+	{
+		if(calibrated.at(i) == false) continue;
+		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
+		if(cRange->max > rangeThreshold && (smallestCRange == 0 || cRange->max < smallestCRange->max))
+		{
+			smallestRange = i;
+			smallestCRange = cRange;
+		}
+	}
+	if(smallestCRange == 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": no calibrated range with maxium voltage above " << rangeThreshold << "V found.";
+		throw std::invalid_argument(message.str());
+	}
+	return smallestRange;
+}
+
+void NIMSeries::Calibrator::calibrateAIRangesAboveThreshold(const Polynomial &PWMCalibration,
+	const Polynomial &nonlinearityCorrection, enum NIMSeries::References::PositiveCalSource posReferenceSource,
+	std::vector<Polynomial> *AICalibrations, std::vector<bool> *calibrated, double maxRangeThreshold)
+{
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
+	unsigned i;
+	for(i = 0; i < numAIRanges; ++i)
+	{
+		if(calibrated->at(i) == true) continue;
+		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
+		if(cRange->max < maxRangeThreshold) continue;
+		std::cout << "calibrating range " << i << " ..." << std::endl;
+		AICalibrations->at(i) = calibrateAIRange(PWMCalibration, nonlinearityCorrection,
+			posReferenceSource, i);
+		calibrated->at(i) = true;
+		std::cout << "done." << std::endl;
+	}
 }
 
 // References

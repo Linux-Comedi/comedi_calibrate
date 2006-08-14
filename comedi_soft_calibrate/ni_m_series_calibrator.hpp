@@ -69,6 +69,7 @@ namespace NIMSeries
 		static const int minimumPWMPulseTicks = 0x20;
 		static const int PWMPeriodTicks = 20 * minimumPWMPulseTicks;
 
+		std::vector<Polynomial> calibrateAISubdevice();
 		Polynomial calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization);
 		// calibrate the one range that can actually read the onboard voltage reference directly
 		Polynomial calibrateAIBaseRange(const Polynomial &nonlinearityCorrection);
@@ -79,8 +80,12 @@ namespace NIMSeries
 		Polynomial calibrateGainAndOffset(const Polynomial &nonlinearityCorrection,
 			enum NIMSeries::References::PositiveCalSource posReferenceSource, double referenceVoltage, unsigned range);
 		void setPWMUpTicks(unsigned upTicks);
+		std::map<unsigned, double> characterizePWM(enum NIMSeries::References::PositiveCalSource posReferenceSource, unsigned ADRange);
+		unsigned smallestCalibratedAIRangeContaining(const std::vector<bool> &calibrated, double rangeThreshold);
+		void calibrateAIRangesAboveThreshold(const Polynomial &PWMCalibration, const Polynomial &nonlinearityCorrection,
+			enum NIMSeries::References::PositiveCalSource posReferenceSource,
+			std::vector<Polynomial> *AICalibrations, std::vector<bool> *calibrated, double maxRangeThreshold);
 
-		std::map<unsigned, double> characterizePWM();
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;
 	};
