@@ -90,7 +90,7 @@ std::vector<Polynomial> NIMSeries::Calibrator::calibrateAISubdevice()
 	// calibrate high-gain ranges
 	range = smallestCalibratedAIRangeContaining(calibrated, mediumRangeThreshold);
 	assert(calibrated.at(range) == true);
-	PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_2V, range);
+	PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_500mV, range);
 	PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(range));
 	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
 		NIMSeries::References::POS_CAL_PWM_500mV, &AICalibrations, &calibrated, 0.);
@@ -334,7 +334,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 		throw std::invalid_argument(message.str());
 	}
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF);
+	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE | CR_DITHER, inputRange, AREF_DIFF);
 	struct timespec req;
 	req.tv_sec = 0;
 	req.tv_nsec = settleNanoSec;
@@ -344,7 +344,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 		message << __FUNCTION__ << ": nanosleep() returned error, errno=" << errno << std::endl;
 		throw std::runtime_error(message.str());
 	}
-	return _dev->dataReadN(ADSubdev, 0 | CR_ALT_SOURCE, inputRange, AREF_DIFF, numSamples);
+	return _dev->dataReadN(ADSubdev, 0 | CR_ALT_SOURCE | CR_DITHER, inputRange, AREF_DIFF, numSamples);
 }
 
 std::vector<double> NIMSeries::References::readReferenceDouble(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const
