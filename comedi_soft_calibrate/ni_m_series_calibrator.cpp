@@ -20,11 +20,13 @@
 #include "calibrator_misc.hpp"
 #include <cassert>
 #include <cstring>
+#include <ext/stdio_filebuf.h>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 NIMSeries::Calibrator::Calibrator(): ::Calibrator()
@@ -67,7 +69,7 @@ std::vector<Polynomial> NIMSeries::Calibrator::calibrateAISubdevice()
 	std::map<unsigned, double> PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_10V, baseRange);
 	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
+	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
 	std::vector<Polynomial> AICalibrations(numAIRanges);
 	std::vector<bool> calibrated(numAIRanges, false);
 	std::cout << "calibrating base range " << baseRange << " ..." << std::endl;
@@ -159,7 +161,8 @@ std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM(enum NIMSeries
 			Also, the PWM output is not linear unless you keep (upPeriod + downPeriod) constant. */
 		const unsigned upTicks = minimumPWMPulseTicks * i;
 		setPWMUpTicks(upTicks);
-		std::vector<double> readings = _references->readReferenceDouble(numSamples, ADRange, settleNanoSec);
+		std::vector<double> readings = _references->readReferenceDouble(PWMRoundedNumSamples(numSamples, _references->getMinSamplePeriodNanosec()),
+			_references->getMinSamplePeriodNanosec(), ADRange, settleNanosec);
 		std::cout << "i = " << i << "\n";
 		double mean = estimateMean(readings);
 		std::cout << "\testimate of mean = " << mean << "\n";
@@ -199,8 +202,8 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 
 void NIMSeries::Calibrator::setPWMUpTicks(unsigned upTicks)
 {
-	const unsigned upPeriod = upTicks * masterClockPeriodNanoSec;
-	const unsigned downPeriod = (PWMPeriodTicks - upTicks) * masterClockPeriodNanoSec;
+	const unsigned upPeriod = upTicks * masterClockPeriodNanosec;
+	const unsigned downPeriod = (PWMPeriodTicks - upTicks) * masterClockPeriodNanosec;
 	unsigned actualUpPeriod, actualDownPeriod;
 	_references->setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
 	assert(upPeriod == actualUpPeriod && downPeriod == actualDownPeriod);
@@ -210,12 +213,16 @@ Polynomial NIMSeries::Calibrator::calibrateGainAndOffset(const Polynomial &nonli
 	enum NIMSeries::References::PositiveCalSource posReferenceSource, double referenceVoltage, unsigned range)
 {
 	_references->setReference(References::POS_CAL_GROUND, References::NEG_CAL_GROUND);
-	std::vector<double> readings = _references->readReferenceDouble(numSamples, range, settleNanoSec);
+	std::vector<double> readings = _references->readReferenceDouble(
+		PWMRoundedNumSamples(numSamples, _references->getMinSamplePeriodNanosec()),
+		_references->getMinSamplePeriodNanosec(), range, settleNanosec);
 	const double measuredGroundCode = estimateMean(readings);
 	const double linearizedGroundCode = nonlinearityCorrection(measuredGroundCode);
 
 	_references->setReference(posReferenceSource, References::NEG_CAL_GROUND);
-	readings = _references->readReferenceDouble(numSamples, range, settleNanoSec);
+	readings = _references->readReferenceDouble(
+		PWMRoundedNumSamples(numSamples, _references->getMinSamplePeriodNanosec()),
+		_references->getMinSamplePeriodNanosec(), range, settleNanosec);
 	const double measuredReferenceCode = estimateMean(readings);
 	const double linearizedReferenceCode = nonlinearityCorrection(measuredReferenceCode);
 
@@ -240,7 +247,7 @@ Polynomial NIMSeries::Calibrator::calibrateGainAndOffset(const Polynomial &nonli
 unsigned NIMSeries::Calibrator::smallestCalibratedAIRangeContaining(const std::vector<bool> &calibrated, double rangeThreshold)
 {
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
+	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
 	unsigned i;
 	const comedi_range *smallestCRange = 0;
 	unsigned smallestRange;
@@ -268,7 +275,7 @@ void NIMSeries::Calibrator::calibrateAIRangesAboveThreshold(const Polynomial &PW
 	std::vector<Polynomial> *AICalibrations, std::vector<bool> *calibrated, double maxRangeThreshold)
 {
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned numAIRanges = _dev->getNRanges(ADSubdev);
+	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
 	unsigned i;
 	for(i = 0; i < numAIRanges; ++i)
 	{
@@ -281,6 +288,13 @@ void NIMSeries::Calibrator::calibrateAIRangesAboveThreshold(const Polynomial &PW
 		calibrated->at(i) = true;
 		std::cout << "done." << std::endl;
 	}
+}
+
+unsigned NIMSeries::Calibrator::PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const
+{
+	unsigned PWMPeriodNS = PWMPeriodTicks * masterClockPeriodNanosec;
+	unsigned totalSamplingPeriod = (((numSamples * samplePeriodNS) + PWMPeriodNS / 2) / PWMPeriodNS) * PWMPeriodNS;
+	return totalSamplingPeriod / samplePeriodNS;
 }
 
 // References
@@ -329,35 +343,120 @@ void NIMSeries::References::setReference(enum PositiveCalSource posSource, enum 
 	_dev->doInsn(&referenceSourceConfig);
 }
 
-std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const
+std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, unsigned samplePeriodNS,
+	unsigned inputRange, unsigned settleNanosec) const
 {
-	if(settleNanoSec >= 1000000000)
+	if(settleNanosec >= 1000000000)
 	{
 		std::ostringstream message;
-		message << __FUNCTION__ << ": invalid settleNanoSec=" << settleNanoSec << " .";
+		message << __FUNCTION__ << ": invalid settleNanosec=" << settleNanosec << " .";
 		throw std::invalid_argument(message.str());
+	}
+	if(numSamples < 1)
+	{
+		return std::vector<lsampl_t>();
 	}
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE | CR_DITHER, inputRange, AREF_DIFF);
 	struct timespec req;
 	req.tv_sec = 0;
-	req.tv_nsec = settleNanoSec;
+	req.tv_nsec = settleNanosec;
 	if(nanosleep(&req, 0))
 	{
 		std::ostringstream message;
 		message << __FUNCTION__ << ": nanosleep() returned error, errno=" << errno << std::endl;
 		throw std::runtime_error(message.str());
 	}
-	return _dev->dataReadN(ADSubdev, 0 | CR_ALT_SOURCE | CR_DITHER, inputRange, AREF_DIFF, numSamples);
+	comedi_cmd cmd;
+	memset(&cmd, 0, sizeof(cmd));
+	static const unsigned numChannels = 1;
+	cmd.subdev = ADSubdev;
+	cmd.start_src = TRIG_NOW;
+	cmd.scan_begin_src = TRIG_TIMER;
+	cmd.scan_begin_arg = samplePeriodNS;
+	cmd.convert_src = TRIG_TIMER;
+	cmd.convert_arg = 0;
+	cmd.scan_end_src = TRIG_COUNT;
+	cmd.scan_end_arg = numChannels;
+	cmd.stop_src = TRIG_COUNT;
+	cmd.stop_arg = numSamples;
+	boost::array<unsigned, numChannels> chanlist;
+	chanlist.at(0) = 0 | CR_ALT_SOURCE | CR_ALT_FILTER;
+	cmd.chanlist = &chanlist.at(0);
+	cmd.chanlist_len = chanlist.size();
+	unsigned i;
+	static const unsigned maxTests = 4;
+	int retval = 0;
+	for(i = 0; i < maxTests; ++i)
+	{
+		retval = _dev->commandTest(&cmd);
+		if(retval == 0) break;
+	}
+	if(i == maxTests)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_command_test failed, last retval = " << retval;
+		throw std::runtime_error(message.str());
+	}
+	assert(cmd.scan_begin_arg == samplePeriodNS);
+	_dev->command(&cmd);
+	std::vector<lsampl_t> longData(numSamples);
+	unsigned samplesRead;
+	if(_dev->subdeviceFlags(ADSubdev) & SDF_LSAMPL)
+	{
+		__gnu_cxx::stdio_filebuf<char> comediFile(_dev->fileno(), std::ios::in, false, static_cast<size_t>(BUFSIZ));
+		std::streamsize count = comediFile.sgetn(reinterpret_cast<char*>(&longData.at(0)), numSamples * sizeof(lsampl_t));
+		samplesRead = count / sizeof(lsampl_t);
+	}else
+	{
+		__gnu_cxx::stdio_filebuf<char> comediFile(_dev->fileno(), std::ios::in, false, static_cast<size_t>(BUFSIZ));
+		std::vector<sampl_t> data(numSamples);
+		std::streamsize count = comediFile.sgetn(reinterpret_cast<char*>(&data.at(0)), numSamples * sizeof(sampl_t));
+		samplesRead = count / sizeof(sampl_t);
+		std::copy(data.begin(), data.end(), longData.begin());
+	}
+	if(samplesRead != numSamples)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": failed to read " << numSamples << " samples from comedi device file, count = " << samplesRead << std::endl;
+		throw std::runtime_error(message.str());
+	}
+	return longData;
 }
 
-std::vector<double> NIMSeries::References::readReferenceDouble(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const
+std::vector<double> NIMSeries::References::readReferenceDouble(unsigned numSamples, unsigned samplePeriodNS,
+	unsigned inputRange, unsigned settleNanosec) const
 {
-	std::vector<lsampl_t> rawData = readReference(numSamples, inputRange, settleNanoSec);
+	std::vector<lsampl_t> rawData = readReference(numSamples,
+		samplePeriodNS, inputRange, settleNanosec);
 	std::vector<double> readings(rawData.size());
 	std::copy(rawData.begin(), rawData.end(), readings.begin());
 	return readings;
 }
+
+unsigned NIMSeries::References::getMinSamplePeriodNanosec() const
+{
+	comedi_cmd cmd;
+	static const unsigned numChannels = 1;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.subdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	cmd.start_src = TRIG_NOW;
+	cmd.scan_begin_src = TRIG_TIMER;
+	cmd.scan_begin_arg = 0;
+	cmd.convert_src = TRIG_TIMER;
+	cmd.convert_arg = 0;
+	cmd.scan_end_src = TRIG_COUNT;
+	cmd.scan_end_arg = numChannels;
+	cmd.stop_src = TRIG_COUNT;
+	cmd.stop_arg = 1;
+	unsigned chanlist[] = {0};
+	cmd.chanlist = chanlist;
+	cmd.chanlist_len = numChannels;
+	int retval = _dev->commandTest(&cmd);
+	assert(retval == 0 || retval >=3);
+	return cmd.scan_begin_arg;
+}
+
 // EEPROM
 
 NIMSeries::EEPROM::EEPROM(boost::shared_ptr<comedi::Device> dev): _dev(dev)

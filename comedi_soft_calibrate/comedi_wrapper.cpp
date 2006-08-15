@@ -74,6 +74,22 @@ std::string comedi::Device::boardName() const
 	return name;
 }
 
+void comedi::Device::command(comedi_cmd *cmd)
+{
+	int retval = comedi_command(_dev, cmd);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_command() failed, return value=" << retval << " .";
+		throw std::runtime_error(message.str());
+	}
+}
+
+int comedi::Device::commandTest(comedi_cmd *cmd)
+{
+	return comedi_command_test(_dev, cmd);
+}
+
 lsampl_t comedi::Device::dataRead(unsigned subdevice, unsigned channel, unsigned range, unsigned aref)
 {
 	lsampl_t value;
@@ -122,7 +138,19 @@ void comedi::Device::doInsn(comedi_insn *instruction)
 	}
 }
 
-unsigned comedi::Device::getNRanges(unsigned subdevice, unsigned channel) const
+int comedi::Device::fileno()
+{
+	int fd = comedi_fileno(_dev);
+	if(fd < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_fileno() failed.";
+		throw std::runtime_error(message.str());
+	}
+	return fd;
+}
+
+unsigned comedi::Device::nRanges(unsigned subdevice, unsigned channel) const
 {
 	int retval = comedi_get_n_ranges(_dev, subdevice, channel);
 	if(retval < 0)
@@ -156,4 +184,16 @@ lsampl_t comedi::Device::maxData(unsigned subdevice, unsigned channel) const
 		throw std::runtime_error(message.str());
 	}
 	return value;
+}
+
+unsigned comedi::Device::subdeviceFlags(unsigned subdevice) const
+{
+	int retval = comedi_get_subdevice_flags(_dev, subdevice);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_get_subdevice_flags() failed.";
+		throw std::runtime_error(message.str());
+	}
+	return retval;
 }

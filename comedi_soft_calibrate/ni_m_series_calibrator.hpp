@@ -47,8 +47,9 @@ namespace NIMSeries
 		References(boost::shared_ptr<comedi::Device> dev);
 		void setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns = 0, unsigned *actual_low_ns = 0);
 		void setReference(enum PositiveCalSource posSource, enum NegativeCalSource NegSource);
-		std::vector<lsampl_t> readReference(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
-		std::vector<double> readReferenceDouble(unsigned numSamples, unsigned inputRange, unsigned settleNanoSec) const;
+		std::vector<lsampl_t> readReference(unsigned numSamples, unsigned samplePeriodNanosec, unsigned inputRange, unsigned settleNanosec) const;
+		std::vector<double> readReferenceDouble(unsigned numSamples, unsigned samplePeriodNanosec, unsigned inputRange, unsigned settleNanosec) const;
+		unsigned getMinSamplePeriodNanosec() const;
 	private:
 		boost::shared_ptr<comedi::Device> _dev;
 	};
@@ -63,9 +64,9 @@ namespace NIMSeries
 		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
 	private:
 		static const unsigned numSamples = 10000;
-		static const unsigned settleNanoSec = 1000000;
+		static const unsigned settleNanosec = 1000000;
 		static const unsigned baseRange = 0;
-		static const unsigned masterClockPeriodNanoSec = 50;
+		static const unsigned masterClockPeriodNanosec = 50;
 		static const unsigned minimumPWMPulseTicks = 0x20;
 		static const unsigned PWMPeriodTicks = 20 * minimumPWMPulseTicks;
 
@@ -85,6 +86,8 @@ namespace NIMSeries
 		void calibrateAIRangesAboveThreshold(const Polynomial &PWMCalibration, const Polynomial &nonlinearityCorrection,
 			enum NIMSeries::References::PositiveCalSource posReferenceSource,
 			std::vector<Polynomial> *AICalibrations, std::vector<bool> *calibrated, double maxRangeThreshold);
+		// round numSamples so we sample over an integer number of PWM periods
+		unsigned PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const;
 
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;
