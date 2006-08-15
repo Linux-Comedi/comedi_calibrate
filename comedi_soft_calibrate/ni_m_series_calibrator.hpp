@@ -88,6 +88,7 @@ namespace NIMSeries
 			std::vector<Polynomial> *AICalibrations, std::vector<bool> *calibrated, double maxRangeThreshold);
 		// round numSamples so we sample over an integer number of PWM periods
 		unsigned PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const;
+		void checkAIBufferSize();
 
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;

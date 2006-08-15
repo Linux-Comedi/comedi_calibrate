@@ -74,6 +74,18 @@ std::string comedi::Device::boardName() const
 	return name;
 }
 
+unsigned comedi::Device::bufferSize(unsigned subdevice) const
+{
+	int retval = comedi_get_buffer_size(_dev, subdevice);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_get_buffer_size() failed.";
+		throw std::runtime_error(message.str());
+	}
+	return retval;
+}
+
 void comedi::Device::command(comedi_cmd *cmd)
 {
 	int retval = comedi_command(_dev, cmd);
@@ -174,6 +186,18 @@ const comedi_range* comedi::Device::getRange(unsigned subdevice, unsigned channe
 	return cRange;
 }
 
+unsigned comedi::Device::maxBufferSize(unsigned subdevice) const
+{
+	int retval = comedi_get_max_buffer_size(_dev, subdevice);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_get_max_buffer_size() failed.";
+		throw std::runtime_error(message.str());
+	}
+	return retval;
+}
+
 lsampl_t comedi::Device::maxData(unsigned subdevice, unsigned channel) const
 {
 	lsampl_t value = comedi_get_maxdata(_dev, subdevice, 0);
@@ -184,6 +208,28 @@ lsampl_t comedi::Device::maxData(unsigned subdevice, unsigned channel) const
 		throw std::runtime_error(message.str());
 	}
 	return value;
+}
+
+void comedi::Device::setBufferSize(unsigned subdevice, unsigned numBytes)
+{
+	int retval = comedi_set_buffer_size(_dev, subdevice, numBytes);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_set_buffer_size() failed.";
+		throw std::runtime_error(message.str());
+	}
+}
+
+void comedi::Device::setMaxBufferSize(unsigned subdevice, unsigned numBytes)
+{
+	int retval = comedi_set_max_buffer_size(_dev, subdevice, numBytes);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_set_max_buffer_size() failed.";
+		throw std::runtime_error(message.str());
+	}
 }
 
 unsigned comedi::Device::subdeviceFlags(unsigned subdevice) const

@@ -66,6 +66,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 
 std::vector<Polynomial> NIMSeries::Calibrator::calibrateAISubdevice()
 {
+	checkAIBufferSize();
 	std::map<unsigned, double> PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_10V, baseRange);
 	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
@@ -295,6 +296,30 @@ unsigned NIMSeries::Calibrator::PWMRoundedNumSamples(unsigned numSamples, unsign
 	unsigned PWMPeriodNS = PWMPeriodTicks * masterClockPeriodNanosec;
 	unsigned totalSamplingPeriod = (((numSamples * samplePeriodNS) + PWMPeriodNS / 2) / PWMPeriodNS) * PWMPeriodNS;
 	return totalSamplingPeriod / samplePeriodNS;
+}
+
+void NIMSeries::Calibrator::checkAIBufferSize()
+{
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	unsigned bytesPerSample;
+	if(_dev->subdeviceFlags(ADSubdev) & SDF_LSAMPL)
+	{
+		bytesPerSample = sizeof(lsampl_t);
+	}else
+	{
+		bytesPerSample = sizeof(sampl_t);
+	}
+	const unsigned requiredSize = bytesPerSample * PWMRoundedNumSamples(numSamples, _references->getMinSamplePeriodNanosec());
+	if(_dev->maxBufferSize(ADSubdev) < requiredSize)
+	{
+		std::cerr << "Analog input buffer maximum size is " << _dev->maxBufferSize(ADSubdev) << " bytes, but we want " << requiredSize << " .\n" <<
+			"If this fails (it will if you aren't root), you will need to use comedi_config to increase the size of the read buffer." << std::endl;
+		_dev->setMaxBufferSize(ADSubdev, requiredSize);
+	}
+	if(_dev->bufferSize(ADSubdev) < requiredSize)
+	{
+		_dev->setBufferSize(ADSubdev, requiredSize);
+	}
 }
 
 // References
