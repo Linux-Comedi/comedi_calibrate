@@ -406,7 +406,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	cmd.stop_src = TRIG_COUNT;
 	cmd.stop_arg = numSamples;
 	boost::array<unsigned, numChannels> chanlist;
-	chanlist.at(0) = 0 | CR_ALT_SOURCE | CR_ALT_FILTER;
+	chanlist.at(0) = CR_PACK(0 | CR_ALT_SOURCE | CR_ALT_FILTER, inputRange, 0);
 	cmd.chanlist = &chanlist.at(0);
 	cmd.chanlist_len = chanlist.size();
 	unsigned i;
