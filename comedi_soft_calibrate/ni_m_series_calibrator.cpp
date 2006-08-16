@@ -109,8 +109,8 @@ Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigne
 	for(it = PWMCharacterization.begin(); it != PWMCharacterization.end() ; ++it)
 	{
 		const unsigned upTicks = it->first;
-		const unsigned downTicks = PWMPeriodTicks - upTicks;
-		nominalCodes.push_back((0. * upTicks + static_cast<double>(maxData) * downTicks) / PWMPeriodTicks);
+		const unsigned downTicks = PWMPeriodTicks() - upTicks;
+		nominalCodes.push_back((0. * upTicks + static_cast<double>(maxData) * downTicks) / PWMPeriodTicks());
 		measuredCodes.push_back(it->second);
 	}
 	Polynomial fit;
@@ -143,7 +143,7 @@ Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibrat
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	const comedi_range *cRange = _dev->getRange(ADSubdev, 0, range);
 	unsigned upTicks = lrint(inversePWMCalibration(cRange->max * 0.9));
-	if(upTicks + minimumPWMPulseTicks > PWMPeriodTicks) upTicks = PWMPeriodTicks - minimumPWMPulseTicks;
+	if(upTicks + minimumPWMPulseTicks > PWMPeriodTicks()) upTicks = PWMPeriodTicks() - minimumPWMPulseTicks;
 	setPWMUpTicks(upTicks);
 	const double referenceVoltage = PWMCalibration(upTicks);
 	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection, posSource, referenceVoltage, range);
@@ -154,7 +154,7 @@ std::map<unsigned, double> NIMSeries::Calibrator::characterizePWM(enum NIMSeries
 {
 	_references->setReference(posReferenceSource, NIMSeries::References::NEG_CAL_GROUND);
 	std::map<unsigned, double> results;
-	const unsigned numCalibrationPoints = PWMPeriodTicks / minimumPWMPulseTicks - 1;
+	const unsigned numCalibrationPoints = TargetPWMPeriodTicks / minimumPWMPulseTicks - 1;
 	unsigned i;
 	for(i = 1; i <= numCalibrationPoints ; ++i)
 	{
@@ -186,7 +186,7 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 		measuredVoltages.push_back(ADRangeCalibration(it->second));
 	}
 	Polynomial fit;
-	fit.expansionOrigin = PWMPeriodTicks / 2;
+	fit.expansionOrigin = PWMPeriodTicks() / 2;
 	fit.coefficients = fitPolynomial(upTicks, measuredVoltages, fit.expansionOrigin, 1);
 	std::cout << "sanity check:\n";
 	const double approxVoltsPerBit = ADRangeCalibration(1) - ADRangeCalibration(0);
@@ -204,7 +204,7 @@ Polynomial NIMSeries::Calibrator::calibratePWM(const std::map<unsigned, double> 
 void NIMSeries::Calibrator::setPWMUpTicks(unsigned upTicks)
 {
 	const unsigned upPeriod = upTicks * masterClockPeriodNanosec;
-	const unsigned downPeriod = (PWMPeriodTicks - upTicks) * masterClockPeriodNanosec;
+	const unsigned downPeriod = (PWMPeriodTicks() - upTicks) * masterClockPeriodNanosec;
 	unsigned actualUpPeriod, actualDownPeriod;
 	_references->setPWM(upPeriod, downPeriod, &actualUpPeriod, &actualDownPeriod);
 	assert(upPeriod == actualUpPeriod && downPeriod == actualDownPeriod);
@@ -293,7 +293,7 @@ void NIMSeries::Calibrator::calibrateAIRangesAboveThreshold(const Polynomial &PW
 
 unsigned NIMSeries::Calibrator::PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const
 {
-	unsigned PWMPeriodNS = PWMPeriodTicks * masterClockPeriodNanosec;
+	unsigned PWMPeriodNS = PWMPeriodTicks() * masterClockPeriodNanosec;
 	unsigned totalSamplingPeriod = (((numSamples * samplePeriodNS) + PWMPeriodNS / 2) / PWMPeriodNS) * PWMPeriodNS;
 	return totalSamplingPeriod / samplePeriodNS;
 }
@@ -320,6 +320,17 @@ void NIMSeries::Calibrator::checkAIBufferSize()
 	{
 		_dev->setBufferSize(ADSubdev, requiredSize);
 	}
+}
+
+/* tweak PWM period to be 1 tick longer than a multiple of the sampling period.
+This insures the PWM waveform is not sampled at the same points in its waveform over
+and over again, giving a better measure of the average value. */
+unsigned NIMSeries::Calibrator::PWMPeriodTicks() const
+{
+	const unsigned samplePeriodTicks = _references->getMinSamplePeriodNanosec() / masterClockPeriodNanosec;
+	// round up to nearest multiple of samplePeriod.
+	unsigned ticks = ((TargetPWMPeriodTicks + samplePeriodTicks - 1) / samplePeriodTicks) * samplePeriodTicks;
+	return ++ticks;
 }
 
 // References
@@ -382,7 +393,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 		return std::vector<lsampl_t>();
 	}
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE | CR_DITHER, inputRange, AREF_DIFF);
+	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE | CR_ALT_FILTER, inputRange, AREF_DIFF);
 	struct timespec req;
 	req.tv_sec = 0;
 	req.tv_nsec = settleNanosec;
@@ -406,7 +417,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	cmd.stop_src = TRIG_COUNT;
 	cmd.stop_arg = numSamples;
 	boost::array<unsigned, numChannels> chanlist;
-	chanlist.at(0) = CR_PACK(0 | CR_ALT_SOURCE | CR_ALT_FILTER, inputRange, 0);
+	chanlist.at(0) = CR_PACK(0 | CR_ALT_SOURCE | CR_ALT_FILTER, inputRange, AREF_DIFF);
 	cmd.chanlist = &chanlist.at(0);
 	cmd.chanlist_len = chanlist.size();
 	unsigned i;

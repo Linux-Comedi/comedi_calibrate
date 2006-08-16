@@ -68,7 +68,7 @@ namespace NIMSeries
 		static const unsigned baseRange = 0;
 		static const unsigned masterClockPeriodNanosec = 50;
 		static const unsigned minimumPWMPulseTicks = 0x20;
-		static const unsigned PWMPeriodTicks = 20 * minimumPWMPulseTicks;
+		static const unsigned TargetPWMPeriodTicks = 20 * minimumPWMPulseTicks;
 
 		std::vector<Polynomial> calibrateAISubdevice();
 		Polynomial calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization);
@@ -89,6 +89,7 @@ namespace NIMSeries
 		// round numSamples so we sample over an integer number of PWM periods
 		unsigned PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const;
 		void checkAIBufferSize();
+		unsigned PWMPeriodTicks() const;
 
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;
