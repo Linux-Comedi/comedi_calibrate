@@ -63,7 +63,7 @@ namespace NIMSeries
 		virtual std::vector<std::string> supportedDeviceNames() const;
 		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
 	private:
-		static const unsigned numSamples = 10000;
+		static const unsigned numSamples = 15000;
 		static const unsigned settleNanosec = 1000000;
 		static const unsigned baseRange = 0;
 		static const unsigned masterClockPeriodNanosec = 50;
