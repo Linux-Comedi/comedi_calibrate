@@ -43,7 +43,7 @@ double estimateStandardDeviationOfMean(const std::vector<double> &samples, doubl
 }
 
 // returns polynomial coefficients for polynomial fit to data y = f(x)
-const std::vector<double> fitPolynomial(const std::vector<double> &x, const std::vector<double> &y,
+std::vector<double> fitPolynomial(const std::vector<double> &x, const std::vector<double> &y,
 	double expansionOrigin, unsigned order)
 {
 	const int NUM_COEFFICIENTS = order + 1;

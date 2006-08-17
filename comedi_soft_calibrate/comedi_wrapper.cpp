@@ -173,6 +173,18 @@ int comedi::Device::fileno()
 	return fd;
 }
 
+unsigned comedi::Device::nChannels(unsigned subdevice) const
+{
+	int retval = comedi_get_n_channels(_dev, subdevice);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_get_n_channels() failed.";
+		throw std::runtime_error(message.str());
+	}
+	return retval;
+}
+
 unsigned comedi::Device::nRanges(unsigned subdevice, unsigned channel) const
 {
 	int retval = comedi_get_n_ranges(_dev, subdevice, channel);

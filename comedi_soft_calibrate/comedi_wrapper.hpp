@@ -42,6 +42,7 @@ namespace comedi
 		void doInsn(comedi_insn *instruction);
 		int fileno();
 		unsigned maxBufferSize(unsigned subdevice) const;
+		unsigned nChannels(unsigned subdevice) const;
 		unsigned nRanges(unsigned subdevice, unsigned channel = 0) const;
 		const comedi_range* getRange(unsigned subdevice, unsigned channel, unsigned range) const;
 		lsampl_t maxData(unsigned subdevice, unsigned channel = 0) const;

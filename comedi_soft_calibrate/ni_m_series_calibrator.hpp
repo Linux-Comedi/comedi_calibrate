@@ -93,9 +93,10 @@ namespace NIMSeries
 		unsigned PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const;
 		void checkAIBufferSize();
 		unsigned PWMPeriodTicks() const;
-		std::vector<Polynomial> calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations);
+		const SubdeviceCalibration calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations);
 		Polynomial calibrateAOChannelAndRange(const Polynomial &AICalibration,
 			unsigned AIRange, unsigned AOChannel, unsigned AORange);
+		unsigned findAIRangeForAO(unsigned AORange) const;
 
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;

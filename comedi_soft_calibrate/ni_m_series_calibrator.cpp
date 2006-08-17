@@ -57,7 +57,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	_dev = dev;
 	_references.reset(new NIMSeries::References(_dev));
 	std::vector<Polynomial> AICalibrations = calibrateAISubdevice();
-	std::vector<Polynomial> AOCalibrations = calibrateAOSubdevice(AICalibrations);
+	SubdeviceCalibration AOCalibrations = calibrateAOSubdevice(AICalibrations);
 
 	CalibrationSet calibration;
 	return calibration;
@@ -334,42 +334,85 @@ unsigned NIMSeries::Calibrator::PWMPeriodTicks() const
 	return ++ticks;
 }
 
-std::vector<Polynomial> NIMSeries::Calibrator::calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations)
+const SubdeviceCalibration NIMSeries::Calibrator::calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations)
 {
-	std::vector<Polynomial> AOCalibrations;
-
+	const unsigned AOSubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
+	const unsigned numAORanges = _dev->nRanges(AOSubdevice);
+	const unsigned numAOChannels = _dev->nChannels(AOSubdevice);
+	unsigned channel, range;
+	SubdeviceCalibration AOCalibrations;
+	for(channel = 0; channel < numAOChannels; ++channel)
+	{
+		for(range = 0; range < numAORanges; ++range)
+		{
+			if(_dev->getRange(AOSubdevice, 0, range)->unit != UNIT_volt) continue;
+			const unsigned AIRange = findAIRangeForAO(range);
+			Polynomial calibration = calibrateAOChannelAndRange(AICalibrations.at(AIRange), AIRange, channel, range);
+			AOCalibrations.insertPolynomial(calibration, channel, range);
+		}
+	}
 	return AOCalibrations;
 }
 
 Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &AICalibration,
 	unsigned AIRange, unsigned AOChannel, unsigned AORange)
 {
-	const unsigned DASubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
+	const unsigned AOSubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
 	_references->setReference(AOChannel);
 	std::vector<double> codes;
 	std::vector<double> measuredVoltages;
 
-	const lsampl_t lowCode = lrint(_dev->maxData(DASubdevice) * 0.1);
+	const lsampl_t lowCode = lrint(_dev->maxData(AOSubdevice) * 0.1);
 	codes.push_back(static_cast<double>(lowCode));
-	_dev->dataWrite(DASubdevice, AOChannel, AORange, AREF_GROUND, lowCode);
+	_dev->dataWrite(AOSubdevice, AOChannel, AORange, AREF_GROUND, lowCode);
 	std::vector<double> readings = _references->readReferenceDouble(
 		numSamples, _references->getMinSamplePeriodNanosec(), AIRange, settleNanosec);
 	const double measuredLowCode = estimateMean(readings);
 	measuredVoltages.push_back(AICalibration(measuredLowCode));
 
-	const lsampl_t highCode = lrint(_dev->maxData(DASubdevice) * 0.9);
-	_dev->dataWrite(DASubdevice, AOChannel, AORange, AREF_GROUND, highCode);
+	//FIXME: make sure we are inside AIRANGE
+	const lsampl_t highCode = lrint(_dev->maxData(AOSubdevice) * 0.9);
+	_dev->dataWrite(AOSubdevice, AOChannel, AORange, AREF_GROUND, highCode);
 	readings = _references->readReferenceDouble(
 		numSamples, _references->getMinSamplePeriodNanosec(), AIRange, settleNanosec);
 	const double measuredHighCode = estimateMean(readings);
 	measuredVoltages.push_back(AICalibration(measuredHighCode));
 
 	Polynomial fit;
-	fit.expansionOrigin = _dev->maxData(DASubdevice) / 2;
+	fit.expansionOrigin = _dev->maxData(AOSubdevice) / 2;
 	fit.coefficients = fitPolynomial(codes, measuredVoltages, fit.expansionOrigin, 1);
 	std::cout << "AO calibration for channel " << AOChannel << ", range " << AORange << " .\n";
 	printPolynomial(fit);
 	return fit;
+}
+
+unsigned NIMSeries::Calibrator::findAIRangeForAO(unsigned AORange) const
+{
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const unsigned DASubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
+	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
+	const double maxAOVoltage = _dev->getRange(DASubdev, 0, AORange)->max;
+	unsigned i;
+	const comedi_range *AICRange = 0;
+	unsigned AIRange;
+	for(i = 0; i < numAIRanges; ++i)
+	{
+		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
+		if(AICRange == 0 ||
+			(cRange->max >= maxAOVoltage && cRange->max < AICRange->max) ||
+			(AICRange->max < maxAOVoltage && cRange->max > AICRange->max))
+		{
+			AIRange = i;
+			AICRange = cRange;
+		}
+	}
+	if(AICRange == 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": failed to find AI range appropriate for AO range " << AORange << " .";
+		throw std::logic_error(message.str());
+	}
+	return AIRange;
 }
 
 // References
