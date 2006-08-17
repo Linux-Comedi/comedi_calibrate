@@ -47,10 +47,13 @@ namespace NIMSeries
 		References(boost::shared_ptr<comedi::Device> dev);
 		void setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns = 0, unsigned *actual_low_ns = 0);
 		void setReference(enum PositiveCalSource posSource, enum NegativeCalSource NegSource);
+		void setReference(unsigned AOChannel);
 		std::vector<lsampl_t> readReference(unsigned numSamples, unsigned samplePeriodNanosec, unsigned inputRange, unsigned settleNanosec) const;
 		std::vector<double> readReferenceDouble(unsigned numSamples, unsigned samplePeriodNanosec, unsigned inputRange, unsigned settleNanosec) const;
 		unsigned getMinSamplePeriodNanosec() const;
 	private:
+		void setReferenceBits(unsigned bits);
+
 		boost::shared_ptr<comedi::Device> _dev;
 	};
 
@@ -78,7 +81,7 @@ namespace NIMSeries
 			enum NIMSeries::References::PositiveCalSource posSource, unsigned range);
 		Polynomial calibratePWM(const std::map<unsigned, double> &PWMCharacterization,
 			const Polynomial &baseRangeCalibration);
-		Polynomial calibrateGainAndOffset(const Polynomial &nonlinearityCorrection,
+		Polynomial calibrateAIGainAndOffset(const Polynomial &nonlinearityCorrection,
 			enum NIMSeries::References::PositiveCalSource posReferenceSource, double referenceVoltage, unsigned range);
 		void setPWMUpTicks(unsigned upTicks);
 		std::map<unsigned, double> characterizePWM(enum NIMSeries::References::PositiveCalSource posReferenceSource, unsigned ADRange);
@@ -90,6 +93,9 @@ namespace NIMSeries
 		unsigned PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const;
 		void checkAIBufferSize();
 		unsigned PWMPeriodTicks() const;
+		std::vector<Polynomial> calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations);
+		Polynomial calibrateAOChannelAndRange(const Polynomial &AICalibration,
+			unsigned AIRange, unsigned AOChannel, unsigned AORange);
 
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;

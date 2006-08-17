@@ -57,6 +57,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 	_dev = dev;
 	_references.reset(new NIMSeries::References(_dev));
 	std::vector<Polynomial> AICalibrations = calibrateAISubdevice();
+	std::vector<Polynomial> AOCalibrations = calibrateAOSubdevice(AICalibrations);
 
 	CalibrationSet calibration;
 	return calibration;
@@ -115,7 +116,7 @@ Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigne
 	}
 	Polynomial fit;
 	fit.expansionOrigin = maxData / 2;
-	fit.coefficients = fitPolynomial(measuredCodes, nominalCodes, fit.expansionOrigin, 3);
+	fit.coefficients = fitPolynomial(nominalCodes, measuredCodes, fit.expansionOrigin, 3);
 	printPolynomial(fit);
 	return fit;
 }
@@ -125,7 +126,7 @@ Polynomial NIMSeries::Calibrator::calibrateAIBaseRange(const Polynomial &nonline
 	NIMSeries::EEPROM eeprom(_dev);
 	const double referenceVoltage = eeprom.referenceVoltage();
 
-	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection,
+	Polynomial fullCorrection = calibrateAIGainAndOffset(nonlinearityCorrection,
 		References::POS_CAL_REF, referenceVoltage, baseRange);
 	return fullCorrection;
 }
@@ -146,7 +147,7 @@ Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibrat
 	if(upTicks + minimumPWMPulseTicks > PWMPeriodTicks()) upTicks = PWMPeriodTicks() - minimumPWMPulseTicks;
 	setPWMUpTicks(upTicks);
 	const double referenceVoltage = PWMCalibration(upTicks);
-	Polynomial fullCorrection = calibrateGainAndOffset(nonlinearityCorrection, posSource, referenceVoltage, range);
+	Polynomial fullCorrection = calibrateAIGainAndOffset(nonlinearityCorrection, posSource, referenceVoltage, range);
 	return fullCorrection;
 }
 
@@ -210,7 +211,7 @@ void NIMSeries::Calibrator::setPWMUpTicks(unsigned upTicks)
 	assert(upPeriod == actualUpPeriod && downPeriod == actualDownPeriod);
 }
 
-Polynomial NIMSeries::Calibrator::calibrateGainAndOffset(const Polynomial &nonlinearityCorrection,
+Polynomial NIMSeries::Calibrator::calibrateAIGainAndOffset(const Polynomial &nonlinearityCorrection,
 	enum NIMSeries::References::PositiveCalSource posReferenceSource, double referenceVoltage, unsigned range)
 {
 	_references->setReference(References::POS_CAL_GROUND, References::NEG_CAL_GROUND);
@@ -333,6 +334,44 @@ unsigned NIMSeries::Calibrator::PWMPeriodTicks() const
 	return ++ticks;
 }
 
+std::vector<Polynomial> NIMSeries::Calibrator::calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations)
+{
+	std::vector<Polynomial> AOCalibrations;
+
+	return AOCalibrations;
+}
+
+Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &AICalibration,
+	unsigned AIRange, unsigned AOChannel, unsigned AORange)
+{
+	const unsigned DASubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
+	_references->setReference(AOChannel);
+	std::vector<double> codes;
+	std::vector<double> measuredVoltages;
+
+	const lsampl_t lowCode = lrint(_dev->maxData(DASubdevice) * 0.1);
+	codes.push_back(static_cast<double>(lowCode));
+	_dev->dataWrite(DASubdevice, AOChannel, AORange, AREF_GROUND, lowCode);
+	std::vector<double> readings = _references->readReferenceDouble(
+		numSamples, _references->getMinSamplePeriodNanosec(), AIRange, settleNanosec);
+	const double measuredLowCode = estimateMean(readings);
+	measuredVoltages.push_back(AICalibration(measuredLowCode));
+
+	const lsampl_t highCode = lrint(_dev->maxData(DASubdevice) * 0.9);
+	_dev->dataWrite(DASubdevice, AOChannel, AORange, AREF_GROUND, highCode);
+	readings = _references->readReferenceDouble(
+		numSamples, _references->getMinSamplePeriodNanosec(), AIRange, settleNanosec);
+	const double measuredHighCode = estimateMean(readings);
+	measuredVoltages.push_back(AICalibration(measuredHighCode));
+
+	Polynomial fit;
+	fit.expansionOrigin = _dev->maxData(DASubdevice) / 2;
+	fit.coefficients = fitPolynomial(codes, measuredVoltages, fit.expansionOrigin, 1);
+	std::cout << "AO calibration for channel " << AOChannel << ", range " << AORange << " .\n";
+	printPolynomial(fit);
+	return fit;
+}
+
 // References
 
 NIMSeries::References::References(boost::shared_ptr<comedi::Device> dev): _dev(dev)
@@ -367,16 +406,13 @@ void NIMSeries::References::setPWM(unsigned high_ns, unsigned low_ns, unsigned *
 
 void NIMSeries::References::setReference(enum PositiveCalSource posSource, enum NegativeCalSource negSource)
 {
-	comedi_insn referenceSourceConfig;
-	boost::array<lsampl_t, 2> refData;
-	memset(&referenceSourceConfig, 0, sizeof(referenceSourceConfig));
-	referenceSourceConfig.insn = INSN_CONFIG;
-	referenceSourceConfig.n = refData.size();
-	referenceSourceConfig.subdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	refData.at(0) = INSN_CONFIG_ALT_SOURCE;
-	refData.at(1) = posSource | negSource;
-	referenceSourceConfig.data = &refData.at(0);
-	_dev->doInsn(&referenceSourceConfig);
+	setReferenceBits(posSource | negSource);
+}
+
+void NIMSeries::References::setReference(unsigned AOChannel)
+{
+	assert((AOChannel & 0xf) == AOChannel);
+	setReferenceBits(POS_CAL_AO | NEG_CAL_GROUND | (AOChannel << 15));
 }
 
 std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, unsigned samplePeriodNS,
@@ -491,6 +527,22 @@ unsigned NIMSeries::References::getMinSamplePeriodNanosec() const
 	int retval = _dev->commandTest(&cmd);
 	assert(retval == 0 || retval >=3);
 	return cmd.scan_begin_arg;
+}
+
+// private functions
+
+void NIMSeries::References::setReferenceBits(unsigned bits)
+{
+	comedi_insn referenceSourceConfig;
+	boost::array<lsampl_t, 2> refData;
+	memset(&referenceSourceConfig, 0, sizeof(referenceSourceConfig));
+	referenceSourceConfig.insn = INSN_CONFIG;
+	referenceSourceConfig.n = refData.size();
+	referenceSourceConfig.subdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	refData.at(0) = INSN_CONFIG_ALT_SOURCE;
+	refData.at(1) = bits;
+	referenceSourceConfig.data = &refData.at(0);
+	_dev->doInsn(&referenceSourceConfig);
 }
 
 // EEPROM

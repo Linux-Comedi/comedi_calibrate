@@ -128,6 +128,17 @@ std::vector<lsampl_t> comedi::Device::dataReadN(unsigned subdevice, unsigned cha
 	return values;
 }
 
+void comedi::Device::dataWrite(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, lsampl_t data)
+{
+	int retval = comedi_data_write(_dev, subdevice, channel, range, aref, data);
+	if(retval < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": comedi_data_write() failed.";
+		throw std::runtime_error(message.str());
+	}
+}
+
 void  comedi::Device::dataReadHint(unsigned subdevice, unsigned channel, unsigned range, unsigned aref)
 {
 	int ret = comedi_data_read_hint(_dev, subdevice, channel, range, aref);

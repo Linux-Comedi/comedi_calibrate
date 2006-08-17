@@ -37,6 +37,7 @@ namespace comedi
 		void command(comedi_cmd *cmd);
 		lsampl_t dataRead(unsigned subdevice, unsigned channel, unsigned range, unsigned aref);
 		std::vector<lsampl_t> dataReadN(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, unsigned numSamples);
+		void dataWrite(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, lsampl_t data);
 		void dataReadHint(unsigned subdevice, unsigned channel, unsigned range, unsigned aref);
 		void doInsn(comedi_insn *instruction);
 		int fileno();
