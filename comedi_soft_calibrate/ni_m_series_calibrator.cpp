@@ -370,9 +370,8 @@ Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &A
 	const double measuredLowCode = estimateMean(readings);
 	measuredVoltages.push_back(AICalibration(measuredLowCode));
 
-	//FIXME: make sure we are inside AIRANGE
-	const lsampl_t highCode = lrint(_dev->maxData(AOSubdevice) * 0.9);
-	_dev->dataWrite(AOSubdevice, AOChannel, AORange, AREF_GROUND, highCode);
+	_dev->dataWrite(AOSubdevice, AOChannel, AORange, AREF_GROUND, highCode(AIRange, AORange));
+	codes.push_back(static_cast<double>(highCode(AIRange, AORange)));
 	readings = _references->readReferenceDouble(
 		numSamples, _references->getMinSamplePeriodNanosec(), AIRange, settleNanosec);
 	const double measuredHighCode = estimateMean(readings);
@@ -384,6 +383,18 @@ Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &A
 	std::cout << "AO calibration for channel " << AOChannel << ", range " << AORange << " .\n";
 	printPolynomial(fit);
 	return fit;
+}
+
+lsampl_t NIMSeries::Calibrator::highCode(unsigned AIRange, unsigned AORange) const
+{
+	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	const unsigned DASubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
+	const comedi_range *AICRange = _dev->getRange(ADSubdev, 0, AIRange);
+	const comedi_range *AOCRange = _dev->getRange(DASubdev, 0, AORange);
+	if(AICRange->max >= AOCRange->max) return lrint(_dev->maxData(DASubdev) * 0.9);
+	double fractionalCode = (0.9 * AICRange->max - AOCRange->min) / (AOCRange->max - AOCRange->min);
+	assert(fractionalCode >= 0. && fractionalCode <= 1.);
+	return lrint(_dev->maxData(DASubdev) * fractionalCode);
 }
 
 unsigned NIMSeries::Calibrator::findAIRangeForAO(unsigned AORange) const

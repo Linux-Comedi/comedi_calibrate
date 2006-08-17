@@ -97,6 +97,8 @@ namespace NIMSeries
 		Polynomial calibrateAOChannelAndRange(const Polynomial &AICalibration,
 			unsigned AIRange, unsigned AOChannel, unsigned AORange);
 		unsigned findAIRangeForAO(unsigned AORange) const;
+		// returns an AO code that will produce a high voltage inside the specified ai input range
+		lsampl_t highCode(unsigned AIRange, unsigned AORange) const;
 
 		boost::shared_ptr<comedi::Device> _dev;
 		boost::shared_ptr<References> _references;
