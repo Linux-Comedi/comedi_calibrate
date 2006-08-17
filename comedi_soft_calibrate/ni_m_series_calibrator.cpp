@@ -379,7 +379,7 @@ Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &A
 
 	Polynomial fit;
 	fit.expansionOrigin = _dev->maxData(AOSubdevice) / 2;
-	fit.coefficients = fitPolynomial(codes, measuredVoltages, fit.expansionOrigin, 1);
+	fit.coefficients = fitPolynomial(measuredVoltages, codes, fit.expansionOrigin, 1);
 	std::cout << "AO calibration for channel " << AOChannel << ", range " << AORange << " .\n";
 	unsigned i;
 	for(i = 0; i < codes.size(); ++i)
