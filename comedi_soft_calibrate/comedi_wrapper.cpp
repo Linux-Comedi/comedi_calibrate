@@ -150,6 +150,11 @@ void  comedi::Device::dataReadHint(unsigned subdevice, unsigned channel, unsigne
 	}
 }
 
+std::string comedi::Device::defaultCalibrationPath() const
+{
+	return comedi_get_default_calibration_path(_dev);
+}
+
 void comedi::Device::doInsn(comedi_insn *instruction)
 {
 	int retval = comedi_do_insn(_dev, instruction);

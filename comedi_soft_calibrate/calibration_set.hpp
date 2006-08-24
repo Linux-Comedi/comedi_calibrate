@@ -27,24 +27,24 @@
 class SubdeviceCalibration
 {
 public:
+	SubdeviceCalibration(bool toPhys = true): _toPhys(toPhys) {}
 	static const unsigned allChannels = static_cast<unsigned>(-1);
 	static const unsigned allRanges = static_cast<unsigned>(-1);
 	const Polynomial& polynomial(unsigned channel = allChannels, unsigned range = allRanges) const;
 	void insertPolynomial(const Polynomial &polynomial, unsigned channel = allChannels, unsigned range = allRanges);
+	bool toPhys() const {return _toPhys;}
+	const std::map<std::pair<unsigned, unsigned>, Polynomial>& polynomials() const {return _polynomials;}
 private:
-	/* passed to map in SubdeviceCalibration so we can find a matching calibration, taking into account the possibility
+	/* channelRangeMatch is passed to std::find so we can find
+	* a matching calibration, taking into account the possibility
 	* of allChannels and allRanges */
 	static bool channelRangeMatch(unsigned channel, unsigned range,
 		const std::pair<std::pair<unsigned, unsigned>, Polynomial> &calibration);
 	std::map<std::pair<unsigned, unsigned>, Polynomial> _polynomials;
+	bool _toPhys;
 };
 
 /* A complete set of calibration coefficients for a device */
-class CalibrationSet
-{
-public:
-	CalibrationSet() {}
-private:
-};
+typedef std::map<unsigned, SubdeviceCalibration> CalibrationSet;
 
 #endif	// _CALIBRATION_SET_HPP

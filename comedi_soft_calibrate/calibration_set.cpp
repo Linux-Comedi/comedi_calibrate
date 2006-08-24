@@ -18,8 +18,10 @@
 
 #include <algorithm>
 #include <boost/bind.hpp>
+#include <cstdlib>
 #include <sstream>
 #include <stdexcept>
+#include <cstdlib>
 
 // SubdeviceCalibration
 

@@ -280,4 +280,3 @@ void sc_push_aref( comedi_calibration_setting_t *saved_cal, int aref )
 	else
 		saved_cal->arefs[ saved_cal->num_arefs++ ] = aref;
 }
-

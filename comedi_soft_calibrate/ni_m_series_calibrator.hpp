@@ -73,7 +73,7 @@ namespace NIMSeries
 		static const unsigned minimumPWMPulseTicks = 0x20;
 		static const unsigned TargetPWMPeriodTicks = 20 * minimumPWMPulseTicks;
 
-		std::vector<Polynomial> calibrateAISubdevice();
+		const SubdeviceCalibration calibrateAISubdevice();
 		Polynomial calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization);
 		// calibrate the one range that can actually read the onboard voltage reference directly
 		Polynomial calibrateAIBaseRange(const Polynomial &nonlinearityCorrection);
@@ -88,12 +88,12 @@ namespace NIMSeries
 		unsigned smallestCalibratedAIRangeContaining(const std::vector<bool> &calibrated, double rangeThreshold);
 		void calibrateAIRangesAboveThreshold(const Polynomial &PWMCalibration, const Polynomial &nonlinearityCorrection,
 			enum NIMSeries::References::PositiveCalSource posReferenceSource,
-			std::vector<Polynomial> *AICalibrations, std::vector<bool> *calibrated, double maxRangeThreshold);
+			SubdeviceCalibration *AICalibration, std::vector<bool> *calibrated, double maxRangeThreshold);
 		// round numSamples so we sample over an integer number of PWM periods
 		unsigned PWMRoundedNumSamples(unsigned numSamples, unsigned samplePeriodNS) const;
 		void checkAIBufferSize();
 		unsigned PWMPeriodTicks() const;
-		const SubdeviceCalibration calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations);
+		const SubdeviceCalibration calibrateAOSubdevice(const SubdeviceCalibration &AICalibration);
 		Polynomial calibrateAOChannelAndRange(const Polynomial &AICalibration,
 			unsigned AIRange, unsigned AOChannel, unsigned AORange);
 		unsigned findAIRangeForAO(unsigned AORange) const;

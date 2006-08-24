@@ -39,6 +39,7 @@ namespace comedi
 		std::vector<lsampl_t> dataReadN(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, unsigned numSamples);
 		void dataWrite(unsigned subdevice, unsigned channel, unsigned range, unsigned aref, lsampl_t data);
 		void dataReadHint(unsigned subdevice, unsigned channel, unsigned range, unsigned aref);
+		std::string defaultCalibrationPath() const;
 		void doInsn(comedi_insn *instruction);
 		int fileno();
 		unsigned maxBufferSize(unsigned subdevice) const;

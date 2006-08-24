@@ -56,49 +56,51 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 {
 	_dev = dev;
 	_references.reset(new NIMSeries::References(_dev));
-	std::vector<Polynomial> AICalibrations = calibrateAISubdevice();
-	SubdeviceCalibration AOCalibrations = calibrateAOSubdevice(AICalibrations);
-
 	CalibrationSet calibration;
+	const unsigned AISubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	calibration[AISubdevice] = calibrateAISubdevice();
+	const unsigned AOSubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
+	calibration[AOSubdevice] = calibrateAOSubdevice(calibration[AISubdevice]);
+
 	return calibration;
 }
 
 // Private functions
 
-std::vector<Polynomial> NIMSeries::Calibrator::calibrateAISubdevice()
+const SubdeviceCalibration NIMSeries::Calibrator::calibrateAISubdevice()
 {
 	checkAIBufferSize();
 	std::map<unsigned, double> PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_10V, baseRange);
 	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
-	std::vector<Polynomial> AICalibrations(numAIRanges);
+	SubdeviceCalibration AICalibration(true);
 	std::vector<bool> calibrated(numAIRanges, false);
 	std::cout << "calibrating base range " << baseRange << " ..." << std::endl;
-	AICalibrations.at(baseRange) = calibrateAIBaseRange(nonlinearityCorrection);
+	AICalibration.insertPolynomial(calibrateAIBaseRange(nonlinearityCorrection), SubdeviceCalibration::allChannels, baseRange);
 	calibrated.at(baseRange) = true;
 	std::cout << "done." << std::endl;
-	Polynomial PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(baseRange));
+	Polynomial PWMCalibration = calibratePWM(PWMCharacterization, AICalibration.polynomial(0, baseRange));
 	// calibrate low-gain ranges
 	const double largeRangeThreshold = 1.99;
 	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
-		NIMSeries::References::POS_CAL_PWM_10V, &AICalibrations, &calibrated, largeRangeThreshold);
+		NIMSeries::References::POS_CAL_PWM_10V, &AICalibration, &calibrated, largeRangeThreshold);
 	// calibrate medium-gain ranges
 	unsigned range = smallestCalibratedAIRangeContaining(calibrated, largeRangeThreshold);
 	assert(calibrated.at(range) == true);
 	PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_2V, range);
-	PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(range));
+	PWMCalibration = calibratePWM(PWMCharacterization, AICalibration.polynomial(0, range));
 	const double mediumRangeThreshold = 0.499;
 	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
-		NIMSeries::References::POS_CAL_PWM_2V, &AICalibrations, &calibrated, mediumRangeThreshold);
+		NIMSeries::References::POS_CAL_PWM_2V, &AICalibration, &calibrated, mediumRangeThreshold);
 	// calibrate high-gain ranges
 	range = smallestCalibratedAIRangeContaining(calibrated, mediumRangeThreshold);
 	assert(calibrated.at(range) == true);
 	PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_500mV, range);
-	PWMCalibration = calibratePWM(PWMCharacterization, AICalibrations.at(range));
+	PWMCalibration = calibratePWM(PWMCharacterization, AICalibration.polynomial(0, range));
 	calibrateAIRangesAboveThreshold(PWMCalibration, nonlinearityCorrection,
-		NIMSeries::References::POS_CAL_PWM_500mV, &AICalibrations, &calibrated, 0.);
-	return AICalibrations;
+		NIMSeries::References::POS_CAL_PWM_500mV, &AICalibration, &calibrated, 0.);
+	return AICalibration;
 }
 
 Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization)
@@ -274,7 +276,7 @@ unsigned NIMSeries::Calibrator::smallestCalibratedAIRangeContaining(const std::v
 
 void NIMSeries::Calibrator::calibrateAIRangesAboveThreshold(const Polynomial &PWMCalibration,
 	const Polynomial &nonlinearityCorrection, enum NIMSeries::References::PositiveCalSource posReferenceSource,
-	std::vector<Polynomial> *AICalibrations, std::vector<bool> *calibrated, double maxRangeThreshold)
+	SubdeviceCalibration *AICalibration, std::vector<bool> *calibrated, double maxRangeThreshold)
 {
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
 	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
@@ -285,8 +287,8 @@ void NIMSeries::Calibrator::calibrateAIRangesAboveThreshold(const Polynomial &PW
 		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
 		if(cRange->max < maxRangeThreshold) continue;
 		std::cout << "calibrating range " << i << " ..." << std::endl;
-		AICalibrations->at(i) = calibrateAIRange(PWMCalibration, nonlinearityCorrection,
-			posReferenceSource, i);
+		AICalibration->insertPolynomial(calibrateAIRange(PWMCalibration, nonlinearityCorrection,
+			posReferenceSource, i), SubdeviceCalibration::allChannels, i);
 		calibrated->at(i) = true;
 		std::cout << "done." << std::endl;
 	}
@@ -334,20 +336,20 @@ unsigned NIMSeries::Calibrator::PWMPeriodTicks() const
 	return ++ticks;
 }
 
-const SubdeviceCalibration NIMSeries::Calibrator::calibrateAOSubdevice(const std::vector<Polynomial> &AICalibrations)
+const SubdeviceCalibration NIMSeries::Calibrator::calibrateAOSubdevice(const SubdeviceCalibration &AICalibration)
 {
 	const unsigned AOSubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
 	const unsigned numAORanges = _dev->nRanges(AOSubdevice);
 	const unsigned numAOChannels = _dev->nChannels(AOSubdevice);
 	unsigned channel, range;
-	SubdeviceCalibration AOCalibrations;
+	SubdeviceCalibration AOCalibrations(false);
 	for(channel = 0; channel < numAOChannels; ++channel)
 	{
 		for(range = 0; range < numAORanges; ++range)
 		{
 			if(_dev->getRange(AOSubdevice, 0, range)->unit != UNIT_volt) continue;
 			const unsigned AIRange = findAIRangeForAO(range);
-			Polynomial calibration = calibrateAOChannelAndRange(AICalibrations.at(AIRange), AIRange, channel, range);
+			Polynomial calibration = calibrateAOChannelAndRange(AICalibration.polynomial(0, AIRange), AIRange, channel, range);
 			AOCalibrations.insertPolynomial(calibration, channel, range);
 		}
 	}

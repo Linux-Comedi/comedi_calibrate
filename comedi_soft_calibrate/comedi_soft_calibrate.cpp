@@ -18,6 +18,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 #include "calibrator.hpp"
+#include "../libcomedi_calibrate/comedi_calibrate_shared.h"
 #include "comedi_wrapper.hpp"
 #include <iostream>
 #include "ni_m_series_calibrator.hpp"
@@ -25,6 +26,59 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+void writeCalibrationSet(const CalibrationSet &calibration, const std::string &driverName,
+	const std::string &boardName, const std::string &filePath)
+{
+	comedi_calibration_t *c_cal = static_cast<comedi_calibration_t *>(malloc(sizeof(comedi_calibration_t)));
+	if(c_cal == 0) throw std::runtime_error("writeCalibrationSet: malloc failed\n");
+	memset(c_cal, 0, sizeof(c_cal));
+	c_cal->driver_name = static_cast<char*>(malloc(driverName.size() + 1));
+	strcpy(c_cal->driver_name, driverName.c_str());
+	c_cal->board_name = static_cast<char*>(malloc(boardName.size() + 1));
+	strcpy(c_cal->board_name, boardName.c_str());
+	CalibrationSet::const_iterator it;
+	for(it = calibration.begin(); it != calibration.end(); ++it)
+	{
+		const SubdeviceCalibration &subdeviceCalibration = it->second;
+		comedi_calibration_setting_t *setting = sc_alloc_calibration_setting(c_cal);
+		setting->subdevice = it->first;
+		std::map<std::pair<unsigned, unsigned>, Polynomial>::const_iterator jt;
+		for(jt = it->second.polynomials().begin(); jt != it->second.polynomials().end(); ++jt)
+		{
+			unsigned channel = jt->first.first;
+			if(channel != SubdeviceCalibration::allChannels)
+			{
+				sc_push_channel(setting, channel);
+			}
+			unsigned range = jt->first.second;
+			if(range != SubdeviceCalibration::allRanges)
+			{
+				sc_push_range(setting, range);
+			}
+			const Polynomial &polynomial = jt->second;
+			comedi_polynomial_t *comediPolynomial = static_cast<comedi_polynomial_t*>(malloc(sizeof(comedi_polynomial_t)));
+			assert(comediPolynomial);
+			comediPolynomial->expansion_origin = polynomial.expansionOrigin;
+			comediPolynomial->order = polynomial.order();
+			unsigned i;
+			for(i = 0; i < polynomial.coefficients.size(); ++i)
+			{
+				assert(i < COMEDI_MAX_NUM_POLYNOMIAL_COEFFICIENTS);
+				comediPolynomial->coefficients[i] = polynomial.coefficients.at(i);
+			}
+			if(subdeviceCalibration.toPhys())
+			{
+				setting->soft_calibration.to_phys = comediPolynomial;
+			}else
+			{
+				setting->soft_calibration.from_phys = comediPolynomial;
+			}
+		}
+	}
+	int retval = write_calibration_file(filePath.c_str(), c_cal);
+	comedi_cleanup_calibration(c_cal);
+}
 
 class ComediSoftCalibrateApp
 {
@@ -36,6 +90,7 @@ private:
 	boost::program_options::options_description desc;
 	boost::program_options::variables_map vm;
 	std::string _deviceFile;
+	std::string _saveFile;
 	boost::shared_ptr<comedi::Device> _comediDev;
 	std::vector<boost::shared_ptr<Calibrator> > _calibrators;
 };
@@ -46,6 +101,7 @@ ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
 	desc.add_options()
 		("help", "produce this help message and exit")
 		("file,f", boost::program_options::value<typeof(_deviceFile)>(&_deviceFile)->default_value("/dev/comedi0"), "device file")
+		("save-file,S", boost::program_options::value<typeof(_saveFile)>(&_saveFile)->default_value(""), "calibration save file")
 	;
 	try
 	{
@@ -94,8 +150,12 @@ void ComediSoftCalibrateApp::exec()
 		throw std::invalid_argument(message.str().c_str());
 	}
 	CalibrationSet calibration = (*it)->calibrate(_comediDev);
-// 	std::cout << "driver name: " << driverName() << std::endl;
-// 	std::cout << "board name: " << _boardName << std::endl;
+	if(_saveFile == "")
+	{
+		_saveFile = _comediDev->defaultCalibrationPath();
+	}
+	writeCalibrationSet(calibration, _comediDev->driverName(),
+		_comediDev->boardName(), _saveFile);
 }
 
 int main(int argc, char **argv)
