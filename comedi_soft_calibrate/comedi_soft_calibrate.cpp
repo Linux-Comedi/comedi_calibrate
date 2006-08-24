@@ -32,7 +32,7 @@ void writeCalibrationSet(const CalibrationSet &calibration, const std::string &d
 {
 	comedi_calibration_t *c_cal = static_cast<comedi_calibration_t *>(malloc(sizeof(comedi_calibration_t)));
 	if(c_cal == 0) throw std::runtime_error("writeCalibrationSet: malloc failed\n");
-	memset(c_cal, 0, sizeof(c_cal));
+	memset(c_cal, 0, sizeof(comedi_calibration_t));
 	c_cal->driver_name = static_cast<char*>(malloc(driverName.size() + 1));
 	strcpy(c_cal->driver_name, driverName.c_str());
 	c_cal->board_name = static_cast<char*>(malloc(boardName.size() + 1));
