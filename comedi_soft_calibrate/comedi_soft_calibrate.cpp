@@ -41,11 +41,11 @@ void writeCalibrationSet(const CalibrationSet &calibration, const std::string &d
 	for(it = calibration.begin(); it != calibration.end(); ++it)
 	{
 		const SubdeviceCalibration &subdeviceCalibration = it->second;
-		comedi_calibration_setting_t *setting = sc_alloc_calibration_setting(c_cal);
-		setting->subdevice = it->first;
 		std::map<std::pair<unsigned, unsigned>, Polynomial>::const_iterator jt;
 		for(jt = it->second.polynomials().begin(); jt != it->second.polynomials().end(); ++jt)
 		{
+			comedi_calibration_setting_t *setting = sc_alloc_calibration_setting(c_cal);
+			setting->subdevice = it->first;
 			unsigned channel = jt->first.first;
 			if(channel != SubdeviceCalibration::allChannels)
 			{
