@@ -78,6 +78,12 @@ void writeCalibrationSet(const CalibrationSet &calibration, const std::string &d
 	}
 	int retval = write_calibration_file(filePath.c_str(), c_cal);
 	comedi_cleanup_calibration(c_cal);
+	if(retval)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": write_calibration_file() failed.";
+		throw std::runtime_error(message.str());
+	}
 }
 
 class ComediSoftCalibrateApp
