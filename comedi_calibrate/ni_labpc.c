@@ -129,7 +129,7 @@ static void labpc_grab_ai_calibration( calibration_setup_t *setup, unsigned int 
 	}
 	assert( ai_frame >=0 && gain_frame >= 0 && offset_frame >= 0 );
 
-	current_cal = sc_alloc_calibration_setting( setup );
+	current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 
 	/* load coarse offset */
 	value = read_eeprom( setup, ai_frame + coarse_offset_index );
@@ -189,7 +189,7 @@ static void labpc_grab_ao_calibration( calibration_setup_t *setup,
 	int ao_frame;
 	int value;
 
-	current_cal = sc_alloc_calibration_setting( setup );
+	current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 
 	if( is_unipolar( setup->dev, setup->da_subdev, 0, range ) )
 		ao_frame = ao_unip_frame;
@@ -251,6 +251,6 @@ static int cal_ni_labpc( calibration_setup_t *setup )
 		}
 	}
 
-	return write_calibration_file( setup );
+	return write_calibration_file(setup->cal_save_file_path, setup->new_calibration);
 }
 

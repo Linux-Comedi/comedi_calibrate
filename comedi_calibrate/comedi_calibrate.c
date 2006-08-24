@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 	memset( &setup, 0, sizeof( setup ) );
 	setup.sv_settling_time_ns = 99999;
 	setup.sv_order = 10;
-	
+
 	memset( &options, 0, sizeof( options ) );
 	options.do_dump = 0;
 	options.do_reset = 0;
@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
 	options.file_path = "/dev/comedi0";
 	parse_options( argc, argv, &options );
 	verbose = options.verbose;
-	
+
 	setup.dev = comedi_open( options.file_path );
 	if( setup.dev == NULL ) {
 		fprintf( stderr, "comedi_open() failed, with device file name: %s\n",
@@ -466,7 +466,7 @@ void postgain_cal( calibration_setup_t *setup, int obs1, int obs2, int dac)
 		setup->observables[obs2].name);
 	preobserve(setup, obs1);
 	check_gain_chan_x( setup, &l, setup->observables[obs1].observe_insn.chanspec, dac);
-	offset1=linear_fit_func_y(&l, setup->caldacs[dac].current);
+	offset1=linear_fit_func_y(&l, setup->caldacs[dac].value);
 	DPRINT(2,"obs1: [%d] offset %g\n",obs1,offset1);
 	range1 = comedi_get_range(setup->dev, setup->observables[obs1].observe_insn.subdev,
 		CR_CHAN( setup->observables[obs1].observe_insn.chanspec),
@@ -475,7 +475,7 @@ void postgain_cal( calibration_setup_t *setup, int obs1, int obs2, int dac)
 
 	preobserve( setup, obs2);
 	check_gain_chan_x( setup, &l, setup->observables[obs2].observe_insn.chanspec,dac);
-	offset2=linear_fit_func_y(&l, setup->caldacs[dac].current);
+	offset2=linear_fit_func_y(&l, setup->caldacs[dac].value);
 	DPRINT(2,"obs2: [%d] offset %g\n",obs2,offset2);
 	range2 = comedi_get_range(setup->dev, setup->observables[obs2].observe_insn.subdev,
 		CR_CHAN( setup->observables[obs2].observe_insn.chanspec),
@@ -490,7 +490,7 @@ void postgain_cal( calibration_setup_t *setup, int obs1, int obs2, int dac)
 	DPRINT(3,"difference: %g\n",offset2-offset1);
 
 	a = (offset1-offset2)/(slope1-slope2);
-	a=setup->caldacs[dac].current-a;
+	a = setup->caldacs[dac].value - a;
 
 	update_caldac( setup, dac, rint(a) );
 	usleep(caldac_settle_usec);
@@ -558,7 +558,7 @@ void peg_binary( calibration_setup_t *setup, int obs, int dac, int maximize )
 
 	my_sv_init(&sv, setup, setup->ad_subdev, chanspec);
 
-	x0 = setup->caldacs[dac].maxdata;
+	x0 = caldac_maxdata(setup->dev, &setup->caldacs[dac]);
 	update_caldac( setup, dac, x0 );
 	usleep(caldac_settle_usec);
 	new_sv_measure( setup->dev, &sv);
@@ -606,7 +606,7 @@ void cal_binary( calibration_setup_t *setup, int obs, int dac)
 
 	my_sv_init(&sv, setup, setup->ad_subdev, chanspec);
 
-	x0 = setup->caldacs[dac].maxdata;
+	x0 = caldac_maxdata(setup->dev, &setup->caldacs[dac]);
 	update_caldac( setup, dac, x0 );
 	usleep(caldac_settle_usec);
 	new_sv_measure( setup->dev, &sv);
@@ -622,7 +622,7 @@ void cal_binary( calibration_setup_t *setup, int obs, int dac)
 	else polarity = -1;
 
 	bit = 1;
-	while( ( bit << 1 ) < setup->caldacs[dac].maxdata )
+	while((bit << 1) < caldac_maxdata(setup->dev, &setup->caldacs[dac]))
 		bit <<= 1;
 	for( ; bit; bit >>= 1 ){
 		x2 = x1 | bit;
@@ -650,7 +650,7 @@ void cal_binary( calibration_setup_t *setup, int obs, int dac)
 
 	update_caldac( setup, dac, x );
 	DPRINT(0,"caldac[%d] set to %d\n",dac,x);
-	if( x >= setup->caldacs[dac].maxdata || x <= 0 )
+	if( x >= caldac_maxdata(setup->dev, &setup->caldacs[dac]) || x <= 0 )
 		DPRINT(0,"WARNING: caldac[%d] pegged!\n", dac );
 	if(verbose>=3){
 		measure_observable( setup, obs);
@@ -677,7 +677,7 @@ void cal_relative_binary( calibration_setup_t *setup, int obs1, int obs2, int da
 
 	comedi_set_global_oor_behavior( COMEDI_OOR_NUMBER );
 
-	x0 = setup->caldacs[dac].maxdata;
+	x0 = caldac_maxdata(setup->dev, &setup->caldacs[dac]);
 	update_caldac( setup, dac, x0 );
 	usleep(caldac_settle_usec);
 	preobserve( setup, obs1);
@@ -703,7 +703,7 @@ void cal_relative_binary( calibration_setup_t *setup, int obs1, int obs2, int da
 	else polarity = -1;
 
 	bit = 1;
-	while( ( bit << 1 ) < setup->caldacs[dac].maxdata )
+	while((bit << 1) < caldac_maxdata(setup->dev, &setup->caldacs[dac]))
 		bit <<= 1;
 	for( ; bit; bit >>= 1 )
 	{
@@ -740,7 +740,7 @@ void cal_relative_binary( calibration_setup_t *setup, int obs1, int obs2, int da
 		x = x2;
 	update_caldac( setup, dac, x );
 	DPRINT(0,"caldac[%d] set to %d\n",dac,x);
-	if( x >= setup->caldacs[dac].maxdata || x <= 0 )
+	if(x >= caldac_maxdata(setup->dev, &setup->caldacs[dac]) || x <= 0 )
 		DPRINT(0,"WARNING: caldac[%d] pegged!\n", dac );
 	if(verbose>=3){
 		preobserve( setup, obs1);
@@ -767,7 +767,7 @@ void cal_linearity_binary( calibration_setup_t *setup, int obs1, int obs2, int o
 
 	comedi_set_global_oor_behavior( COMEDI_OOR_NUMBER );
 
-	x0 = setup->caldacs[dac].maxdata;
+	x0 = caldac_maxdata(setup->dev, &setup->caldacs[dac]);
 	update_caldac( setup, dac, x0 );
 	usleep(caldac_settle_usec);
 
@@ -804,7 +804,7 @@ void cal_linearity_binary( calibration_setup_t *setup, int obs1, int obs2, int o
 	else polarity = -1;
 
 	bit = 1;
-	while( ( bit << 1 ) < setup->caldacs[dac].maxdata )
+	while((bit << 1) < caldac_maxdata(setup->dev, &setup->caldacs[dac]))
 		bit <<= 1;
 	for( ; bit; bit >>= 1 )
 	{
@@ -847,7 +847,7 @@ void cal_linearity_binary( calibration_setup_t *setup, int obs1, int obs2, int o
 		x = x2;
 	update_caldac( setup, dac, x );
 	DPRINT(0,"caldac[%d] set to %d\n",dac,x);
-	if( x >= setup->caldacs[dac].maxdata || x <= 0 )
+	if(x >= caldac_maxdata(setup->dev, &setup->caldacs[dac]) || x <= 0 )
 		DPRINT(0,"WARNING: caldac[%d] pegged!\n", dac );
 	if(verbose>=3){
 		preobserve( setup, obs1);
@@ -923,11 +923,9 @@ void setup_caldacs( calibration_setup_t *setup, int caldac_subdev )
 	assert(setup->n_caldacs + n_chan < N_CALDACS);
 
 	for(i = 0; i < n_chan; i++){
-		setup->caldacs[ setup->n_caldacs + i ].subdev = caldac_subdev;
-		setup->caldacs[ setup->n_caldacs + i ].chan = i;
-		setup->caldacs[ setup->n_caldacs + i ].maxdata = comedi_get_maxdata(setup->dev, caldac_subdev, i);
-		assert(setup->caldacs[ setup->n_caldacs + i ].maxdata > 0);
-		setup->caldacs[ setup->n_caldacs + i ].current=0;
+		setup->caldacs[ setup->n_caldacs + i ].subdevice = caldac_subdev;
+		setup->caldacs[ setup->n_caldacs + i ].channel = i;
+		setup->caldacs[ setup->n_caldacs + i ].value = 0;
 	}
 
 	setup->n_caldacs += n_chan;
@@ -937,7 +935,7 @@ void reset_caldac( calibration_setup_t *setup, int caldac_index )
 {
 	if( caldac_index < 0 ) return;
 	assert( caldac_index < setup->n_caldacs );
-	update_caldac( setup, caldac_index, setup->caldacs[ caldac_index ].maxdata / 2 );
+	update_caldac(setup, caldac_index, caldac_maxdata(setup->dev, &setup->caldacs[caldac_index]) / 2);
 }
 
 void reset_caldacs( calibration_setup_t *setup )
@@ -953,7 +951,7 @@ void update_caldac( calibration_setup_t *setup, int caldac_index,
 	int value )
 {
 	int ret;
-	caldac_t *dac;
+	comedi_caldac_t *dac;
 
 	if( caldac_index < 0 ) return;
 	if( caldac_index > setup->n_caldacs )
@@ -961,21 +959,21 @@ void update_caldac( calibration_setup_t *setup, int caldac_index,
 		fprintf( stderr, "invalid caldac index\n" );
 		return;
 	}
-	dac = &setup->caldacs[ caldac_index ];
-	dac->current = value;
-	DPRINT(4,"update %d %d %d\n", dac->subdev, dac->chan, dac->current);
-	if( dac->current < 0 ){
-		DPRINT(1,"caldac set out of range (%d<0)\n", dac->current);
-		dac->current = 0;
+	if(value < 0){
+		DPRINT(1,"caldac set out of range (%d<0)\n", value);
+		value = 0;
 	}
-	if( dac->current > dac->maxdata ){
+	if(value > caldac_maxdata(setup->dev, dac)) {
 		DPRINT(1,"caldac set out of range (%d>%d)\n",
-			dac->current, dac->maxdata);
-		dac->current = dac->maxdata;
+			value, caldac_maxdata(setup->dev, dac));
+		value = caldac_maxdata(setup->dev, dac);
 	}
+	dac = &setup->caldacs[ caldac_index ];
+	dac->value = value;
+	DPRINT(4,"update %d %d %d\n", dac->subdevice, dac->channel, dac->value);
 
-	ret = comedi_data_write( setup->dev, dac->subdev, dac->chan, 0, 0,
-		dac->current);
+	ret = comedi_data_write(setup->dev, dac->subdevice, dac->channel, 0, 0,
+		dac->value);
 	if(ret < 0) perror("update_caldac()");
 }
 
@@ -1009,7 +1007,7 @@ double check_gain_chan_x( calibration_setup_t *setup, linear_fit_t *l,unsigned i
 	int sum_err_count=0;
 	char str[20];
 
-	n = setup->caldacs[cdac].maxdata+1;
+	n = caldac_maxdata(setup->dev, &setup->caldacs[cdac]) + 1;
 	memset(l,0,sizeof(*l));
 
 	step=n/16;
@@ -1023,7 +1021,7 @@ double check_gain_chan_x( calibration_setup_t *setup, linear_fit_t *l,unsigned i
 		exit(1);
 	}
 
-	orig = setup->caldacs[cdac].current;
+	orig = setup->caldacs[cdac].value;
 
 	my_sv_init(&sv, setup, setup->ad_subdev,ad_chanspec);
 
@@ -1093,7 +1091,7 @@ double check_gain_chan_fine( calibration_setup_t *setup, linear_fit_t *l,unsigne
 		exit(1);
 	}
 
-	orig = setup->caldacs[cdac].current;
+	orig = setup->caldacs[cdac].value;
 
 	my_sv_init(&sv, setup, setup->ad_subdev,ad_chanspec);
 
@@ -1639,4 +1637,11 @@ double get_tolerance( calibration_setup_t *setup, int subdevice,
 	maxdata = comedi_get_maxdata( setup->dev, subdevice, 0 );
 	assert( maxdata > 0 );
 	return num_bits / maxdata;
+}
+
+unsigned caldac_maxdata(comedi_t *dev, const comedi_caldac_t *caldac)
+{
+	unsigned maxdata = comedi_get_maxdata(dev, caldac->subdevice, caldac->channel);
+	assert(maxdata > 0);
+	return maxdata;
 }

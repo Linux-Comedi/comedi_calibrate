@@ -12,6 +12,7 @@
 #define __CALIB_H_
 
 #include "comedilib.h"
+#include "../libcomedi_calibrate/comedi_calibrate_shared.h"
 #if 0
 #include <stdio.h>
 #include <fcntl.h>
@@ -31,17 +32,6 @@
 #define PREOBSERVE_DATA_LEN 10
 
 static const int caldac_settle_usec = 100000;
-
-typedef struct{
-	int subdev;
-	int chan;
-
-	int maxdata;
-	int current;
-
-//	int type;
-//	double gain;
-}caldac_t;
 
 typedef struct{
 	char *name;
@@ -67,7 +57,7 @@ struct calibration_setup_struct {
 	unsigned int sv_order;
 	observable observables[ N_OBSERVABLES ];
 	unsigned int n_observables;
-	caldac_t caldacs[ N_CALDACS ];
+	comedi_caldac_t caldacs[ N_CALDACS ];
 	unsigned int n_caldacs;
 	int (*do_cal) ( calibration_setup_t *setup );
 	char *cal_save_file_path;
@@ -160,6 +150,7 @@ double get_tolerance( calibration_setup_t *setup, int subdevice,
 /* other */
 
 void comedi_nanodelay(comedi_t *dev, unsigned int delay);
+unsigned caldac_maxdata(comedi_t *dev, const comedi_caldac_t *caldac);
 
 /* printing scientific numbers */
 
@@ -223,18 +214,6 @@ int new_sv_measure(comedi_t *dev, new_sv_t *sv);
 int new_sv_init(new_sv_t *sv,comedi_t *dev,int subdev,unsigned int chanspec);
 int my_sv_init( new_sv_t *sv, const calibration_setup_t *setup, int subdev,
 	unsigned int chanspec );
-
-/* saving calibrations to file */
-static const int SC_ALL_CHANNELS = -1;
-static const int SC_ALL_RANGES = -1;
-static const int SC_ALL_AREFS = -1;
-
-int write_calibration_file( calibration_setup_t *setup );
-comedi_calibration_setting_t* sc_alloc_calibration_setting( calibration_setup_t *setup );
-void sc_push_caldac( comedi_calibration_setting_t *saved_cal, caldac_t caldac );
-void sc_push_channel( comedi_calibration_setting_t *saved_cal, int channel );
-void sc_push_range( comedi_calibration_setting_t *saved_cal, int range );
-void sc_push_aref( comedi_calibration_setting_t *saved_cal, int aref );
 
 /* generic calibration support */
 typedef struct

@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #define _GNU_SOURCE
 
+#include "comedi_calibrate_shared.h"
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,10 +31,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <assert.h>
 #include <time.h>
 #include <string.h>
-
-#include <comedilib.h>
-
-#include "calib.h"
 
 void write_caldac( FILE *file, comedi_caldac_t caldac )
 {
@@ -115,73 +113,71 @@ int write_calibration_perl_hash( FILE *file, const comedi_calibration_t *calibra
 	return 0;
 }
 
-int write_calibration_file( calibration_setup_t *setup )
+int write_calibration_file(const char *file_path, const comedi_calibration_t *calibration)
 {
 	FILE *file;
 	int retval;
 
-	assert( setup->new_calibration != NULL );
-	assert( setup->cal_save_file_path );
+	assert(calibration);
+	assert(file_path);
 
-	file = fopen( setup->cal_save_file_path, "w" );
-	if( file == NULL )
+	file = fopen(file_path, "w");
+	if(file == NULL)
 	{
 		fprintf( stderr, "failed to open file %s for writing\n",
-			setup->cal_save_file_path );
+			file_path );
 		perror( "fopen" );
 		return -1;
 	}
 
-	DPRINT( 0, "writing calibration to %s\n", setup->cal_save_file_path );
-	retval = write_calibration_perl_hash( file, setup->new_calibration );
+// 	DPRINT( 0, "writing calibration to %s\n", setup->cal_save_file_path );
+	retval = write_calibration_perl_hash(file, calibration);
 
-	fclose( file );
+	fclose(file);
 
 	return retval;
 }
 
-comedi_calibration_setting_t* sc_alloc_calibration_setting( calibration_setup_t *setup )
+comedi_calibration_setting_t* sc_alloc_calibration_setting(comedi_calibration_t *calibration)
 {
 	comedi_calibration_setting_t *temp;
 
-	temp = realloc( setup->new_calibration->settings,
-		( setup->new_calibration->num_settings + 1 ) * sizeof( comedi_calibration_setting_t ) );
-	assert( temp != NULL );
-	setup->new_calibration->settings = temp;
-	memset( &setup->new_calibration->settings[ setup->new_calibration->num_settings ],
-		0, sizeof( comedi_calibration_setting_t ) );
+	temp = realloc(calibration->settings,
+		(calibration->num_settings + 1) * sizeof(comedi_calibration_setting_t));
+	assert(temp);
+	calibration->settings = temp;
+	memset(&calibration->settings[calibration->num_settings],
+		0, sizeof(comedi_calibration_setting_t));
 
-	setup->new_calibration->num_settings++;
+	calibration->num_settings++;
 
-	return &setup->new_calibration->settings[ setup->new_calibration->num_settings - 1 ];
+	return &calibration->settings[calibration->num_settings - 1];
 }
 
-void sc_push_caldac( comedi_calibration_setting_t *saved_cal, caldac_t caldac )
+void sc_push_caldac(comedi_calibration_setting_t *saved_cal, comedi_caldac_t caldac)
 {
 	int i;
 
 	/* check if caldac is already listed, in which case we just update */
 	for( i = 0; i < saved_cal->num_caldacs; i++ )
 	{
-		if( saved_cal->caldacs[ i ].subdevice != caldac.subdev ) continue;
-		if( saved_cal->caldacs[ i ].channel != caldac.chan ) continue;
+		if( saved_cal->caldacs[ i ].subdevice != caldac.subdevice ) continue;
+		if( saved_cal->caldacs[ i ].channel != caldac.channel ) continue;
 		break;
 	}
 	if( i < saved_cal->num_caldacs )
 	{
-		saved_cal->caldacs[ i ].value = caldac.current;
+		saved_cal->caldacs[ i ].value = caldac.value;
 		return;
 	}
-	saved_cal->caldacs = realloc( saved_cal->caldacs,
-		( saved_cal->num_caldacs + 1 ) * sizeof( caldac_t ) );
-	if( saved_cal->caldacs == NULL )
+	saved_cal->caldacs = realloc(saved_cal->caldacs,
+		(saved_cal->num_caldacs + 1) * sizeof(comedi_caldac_t));
+	if(saved_cal->caldacs == NULL)
 	{
 		fprintf( stderr, "memory allocation failure\n" );
 		abort();
 	}
-	saved_cal->caldacs[ saved_cal->num_caldacs ].subdevice = caldac.subdev;
-	saved_cal->caldacs[ saved_cal->num_caldacs ].channel = caldac.chan;
-	saved_cal->caldacs[ saved_cal->num_caldacs ].value = caldac.current;
+	saved_cal->caldacs[ saved_cal->num_caldacs ] = caldac;
 	saved_cal->num_caldacs++;
 }
 

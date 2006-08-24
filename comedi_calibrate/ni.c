@@ -929,7 +929,7 @@ static int cal_ni_at_mio_16e_10(calibration_setup_t *setup)
 	layout.adc_gain = 2;
 	layout.adc_unip_offset = 7;
 	layout.dac_offset[ 0 ] = 6;
-	layout.dac_gain[ 0 ] = 11; 
+	layout.dac_gain[ 0 ] = 11;
 	layout.dac_linearity[ 0 ] = 10;
 	layout.dac_offset[ 1 ] = 9;
 	layout.dac_gain[ 1 ] = 5;
@@ -1226,7 +1226,7 @@ static int cal_ni_at_mio_64e_3( calibration_setup_t *setup )
 	}
 
 	init_ni_caldac_layout( &layout );
-	
+
 	layout.adc_pregain_offset = 8;
 	layout.adc_postgain_offset = 4;
 	layout.adc_gain = 2;
@@ -1336,7 +1336,7 @@ static int cal_ni_generic( calibration_setup_t *setup, const ni_caldac_layout_t 
 
 	prep_adc_caldacs_generic( setup, layout, ai_bipolar_lowgain );
 
-	current_cal = sc_alloc_calibration_setting( setup );
+	current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 	current_cal->subdevice = setup->ad_subdev;
 	reset_caldac( setup, layout->adc_gain_fine );
 	generic_do_relative( setup, current_cal, ni_zero_offset_low,
@@ -1369,7 +1369,7 @@ static int cal_ni_generic( calibration_setup_t *setup, const ni_caldac_layout_t 
 	/* do seperate unipolar calibration if appropriate */
 	if( ai_unipolar_lowgain >= 0 )
 	{
-		current_cal = sc_alloc_calibration_setting( setup );
+		current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 		current_cal->subdevice = setup->ad_subdev;
 		if( layout->adc_unip_offset >= 0 )
 		{
@@ -1424,7 +1424,7 @@ static int cal_ni_generic( calibration_setup_t *setup, const ni_caldac_layout_t 
 			prep_dac_caldacs_generic( setup, layout, channel, ao_bipolar_lowgain );
 			prep_adc_for_dac( setup, ni_ao_reference( channel ) );
 
-			current_cal = sc_alloc_calibration_setting( setup );
+			current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 			current_cal->subdevice = setup->da_subdev;
 			generic_do_linearity( setup, current_cal, ni_ao_zero_offset( channel ),
 				ni_ao_mid_linearity( channel ), ni_ao_reference( channel ),
@@ -1451,7 +1451,7 @@ static int cal_ni_generic( calibration_setup_t *setup, const ni_caldac_layout_t 
 			{
 				prep_dac_caldacs_generic( setup, layout, channel, ao_unipolar_lowgain );
 
-				current_cal = sc_alloc_calibration_setting( setup );
+				current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 				current_cal->subdevice = setup->da_subdev;
 				generic_do_linearity( setup, current_cal, ni_ao_unip_low_linearity( channel ),
 					ni_ao_unip_mid_linearity( channel ), ni_ao_unip_reference( channel ),
@@ -1477,7 +1477,7 @@ static int cal_ni_generic( calibration_setup_t *setup, const ni_caldac_layout_t 
 		}
 	}
 
-	retval = write_calibration_file( setup );
+	retval = write_calibration_file(setup->cal_save_file_path, setup->new_calibration);
 
 	return retval;
 }
@@ -1687,7 +1687,7 @@ static void ni67xx_setup_observables( calibration_setup_t *setup )
 static int cal_ni_pci_6711(calibration_setup_t *setup)
 {
 	generic_layout_t layout;
-	
+
 	if( comedi_get_version_code( setup->dev ) <= COMEDI_VERSION_CODE(0, 7, 69))
 	{
 		DPRINT(0, "WARNING: you need comedi driver version 0.7.69 or later\n"

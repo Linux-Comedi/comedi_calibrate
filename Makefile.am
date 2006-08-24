@@ -1,2 +1,3 @@
 
-SUBDIRS=comedi_calibrate comedi_soft_calibrate
+SUBDIRS=libcomedi_calibrate comedi_calibrate comedi_soft_calibrate
+

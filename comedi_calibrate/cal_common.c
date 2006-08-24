@@ -305,28 +305,28 @@ int generic_cal_by_channel_and_range( calibration_setup_t *setup,
 		if( layout->adc_postgain_offset( 0 ) >= 0 )
 		{
 			/* bipolar postgain */
-			current_cal = sc_alloc_calibration_setting( setup );
+			current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 			generic_do_adc_postgain_offset( setup, layout, current_cal, channel, 0 );
 			for( range = 0; range < num_ai_ranges; range++ )
 				if( is_bipolar( setup->dev, setup->ad_subdev, channel, range ) )
 					sc_push_range( current_cal, range );
-			postgain_bip = setup->caldacs[ layout->adc_postgain_offset( channel ) ].current;
+			postgain_bip = setup->caldacs[ layout->adc_postgain_offset( channel ) ].value;
 			/* unipolar postgain */
 			if( layout->do_adc_unipolar_postgain )
 			{
-				current_cal = sc_alloc_calibration_setting( setup );
+				current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 				generic_do_adc_postgain_offset( setup, layout, current_cal, channel, 1 );
 			}
 			for( range = 0; range < num_ai_ranges; range++ )
 				if( is_unipolar( setup->dev, setup->ad_subdev, channel, range ) )
 					sc_push_range( current_cal, range );
-			postgain_unip = setup->caldacs[ layout->adc_postgain_offset( channel ) ].current;
+			postgain_unip = setup->caldacs[ layout->adc_postgain_offset( channel ) ].value;
 		}else
 			postgain_bip = postgain_unip = -1;
 
 		for( range = 0; range < num_ai_ranges; range++ )
 		{
-			current_cal = sc_alloc_calibration_setting( setup );
+			current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 			generic_prep_adc_caldacs( setup, layout, channel, range );
 			if( is_unipolar( setup->dev, setup->ad_subdev, channel, range ) )
 				update_caldac( setup, layout->adc_postgain_offset( channel ), postgain_unip );
@@ -339,14 +339,14 @@ int generic_cal_by_channel_and_range( calibration_setup_t *setup,
 	{
 		for( range = 0; range < num_ao_ranges; range++ )
 		{
-			current_cal = sc_alloc_calibration_setting( setup );
+			current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 			generic_prep_dac_caldacs( setup, layout, channel, range );
 			generic_do_dac_channel( setup, layout, setup->new_calibration,
 				current_cal, channel, range );
 		}
 	}
 
-	retval = write_calibration_file( setup );
+	retval = write_calibration_file(setup->cal_save_file_path, setup->new_calibration);
 	return retval;
 }
 
@@ -378,30 +378,30 @@ int generic_cal_by_range( calibration_setup_t *setup,
 	if( layout->adc_postgain_offset( 0 ) >= 0 )
 	{
 		/* bipolar postgain */
-		current_cal = sc_alloc_calibration_setting( setup );
+		current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 		generic_do_adc_postgain_offset( setup, layout, current_cal, 0, 0 );
 		sc_push_channel( current_cal, SC_ALL_CHANNELS );
 		for( range = 0; range < num_ai_ranges; range++ )
 			if( is_bipolar( setup->dev, setup->ad_subdev, 0, range ) )
 				sc_push_range( current_cal, range );
-		postgain_bip = setup->caldacs[ layout->adc_postgain_offset( 0 ) ].current;
+		postgain_bip = setup->caldacs[ layout->adc_postgain_offset( 0 ) ].value;
 		/* unipolar postgain */
 		if( layout->do_adc_unipolar_postgain )
 		{
-			current_cal = sc_alloc_calibration_setting( setup );
+			current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 			generic_do_adc_postgain_offset( setup, layout, current_cal, 0, 1 );
 			sc_push_channel( current_cal, SC_ALL_CHANNELS );
 		}
 		for( range = 0; range < num_ai_ranges; range++ )
 			if( is_unipolar( setup->dev, setup->ad_subdev, 0, range ) )
 				sc_push_range( current_cal, range );
-		postgain_unip = setup->caldacs[ layout->adc_postgain_offset( 0 ) ].current;
+		postgain_unip = setup->caldacs[ layout->adc_postgain_offset( 0 ) ].value;
 	}else
 		postgain_bip = postgain_unip = -1;
 
 	for( range = 0; range < num_ai_ranges; range++ )
 	{
-		current_cal = sc_alloc_calibration_setting( setup );
+		current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 		generic_prep_adc_caldacs( setup, layout, 0, range );
 		if( is_unipolar( setup->dev, setup->ad_subdev, 0, range ) )
 			update_caldac( setup, layout->adc_postgain_offset( 0 ), postgain_unip );
@@ -414,13 +414,13 @@ int generic_cal_by_range( calibration_setup_t *setup,
 	{
 		for( range = 0; range < num_ao_ranges; range++ )
 		{
-			current_cal = sc_alloc_calibration_setting( setup );
+			current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 			generic_prep_dac_caldacs( setup, layout, channel, range );
 			generic_do_dac_channel( setup, layout, setup->new_calibration,
 				current_cal, channel, range );
 		}
 	}
-	retval = write_calibration_file( setup );
+	retval = write_calibration_file(setup->cal_save_file_path, setup->new_calibration);
 	return retval;
 }
 
@@ -447,13 +447,13 @@ int generic_cal_ao(calibration_setup_t *setup,
 	{
 		for( range = 0; range < num_ao_ranges; range++ )
 		{
-			current_cal = sc_alloc_calibration_setting( setup );
+			current_cal = sc_alloc_calibration_setting(setup->new_calibration);
 			generic_prep_dac_caldacs( setup, layout, channel, range );
 			generic_do_dac_channel( setup, layout, setup->new_calibration,
 				current_cal, channel, range );
 		}
 	}
-	retval = write_calibration_file( setup );
+	retval = write_calibration_file(setup->cal_save_file_path, setup->new_calibration);
 	return retval;
 }
 

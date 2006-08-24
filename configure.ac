@@ -9,6 +9,7 @@ AC_PROG_CC
 AM_PROG_CC_STDC
 AC_ISC_POSIX
 AC_PROG_CXX
+AC_PROG_RANLIB
 
 AC_HEADER_STDC([])
 AC_CHECK_LIB([m],[main])
@@ -27,6 +28,7 @@ AC_CONFIG_FILES([
 Makefile
 comedi_calibrate/Makefile
 comedi_soft_calibrate/Makefile
+libcomedi_calibrate/Makefile
 ])
 
 AC_OUTPUT
