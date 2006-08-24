@@ -67,7 +67,7 @@ static void write_polynomial(FILE *file, const comedi_polynomial_t *polynomial)
 	indent(file, baseNumTabs);
 	fprintf(file, "{\n");
 	indent(file, baseNumTabs + 1);
-	fprintf(file, "expansion_origin => %g", polynomial->expansion_origin);
+	fprintf(file, "expansion_origin => %g\n", polynomial->expansion_origin);
 	indent(file, baseNumTabs + 1);
 	fprintf(file, "coefficients => [");
 	for(i = 0; i <= polynomial->order; ++i)
@@ -127,7 +127,7 @@ void write_calibration_setting( FILE *file, comedi_calibration_setting_t setting
 		fprintf(file, "softcal_from_phys =>\n");
 		write_polynomial(file, setting.soft_calibration.from_phys);
 	}
-	fprintf( file, "%s", indent );
+	indent(file, baseNumTabs);
 	fprintf( file, "}" );
 }
 
