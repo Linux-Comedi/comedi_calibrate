@@ -32,59 +32,101 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <time.h>
 #include <string.h>
 
-void write_caldac( FILE *file, comedi_caldac_t caldac )
+static void indent(FILE *file, unsigned numTabs)
 {
-	static const char *indent = "\t\t\t\t";
+	unsigned i;
+	char *string = malloc(numTabs + 1);
+	assert(string);
+	for(i = 0; i < numTabs; ++i)
+		string[i] = '\t';
+	string[i] = '\0';
+	fprintf(file, string);
+	free(string);
+}
 
-	fprintf( file, "%s", indent );
+static void write_caldac( FILE *file, comedi_caldac_t caldac )
+{
+	const unsigned baseNumTabs = 4;
+	indent(file, baseNumTabs);
 	fprintf( file, "{\n" );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tsubdevice => %i,\n", caldac.subdevice );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tchannel => %i,\n", caldac.channel );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tvalue => %i,\n", caldac.value );
-	fprintf( file, "%s", indent );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "subdevice => %i,\n", caldac.subdevice );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "channel => %i,\n", caldac.channel );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "value => %i,\n", caldac.value );
+	indent(file, baseNumTabs);
 	fprintf( file, "}" );
+}
+
+static void write_polynomial(FILE *file, const comedi_polynomial_t *polynomial)
+{
+	const unsigned baseNumTabs = 3;
+	unsigned i;
+
+	indent(file, baseNumTabs);
+	fprintf(file, "{\n");
+	indent(file, baseNumTabs + 1);
+	fprintf(file, "expansion_origin => %g", polynomial->expansion_origin);
+	indent(file, baseNumTabs + 1);
+	fprintf(file, "coefficients => [");
+	for(i = 0; i <= polynomial->order; ++i)
+	{
+		assert(i < COMEDI_MAX_NUM_POLYNOMIAL_COEFFICIENTS);
+		fprintf(file, "%g,", polynomial->coefficients[i]);
+	}
+	fprintf(file, "]\n");
+	indent(file, baseNumTabs);
+	fprintf(file, "}\n");
 }
 
 void write_calibration_setting( FILE *file, comedi_calibration_setting_t setting )
 {
-	static const char *indent = "\t\t";
+	unsigned baseNumTabs = 2;
 	int i;
 
-	fprintf( file, "%s", indent );
+	indent(file, baseNumTabs);
 	fprintf( file, "{\n" );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tsubdevice => %i,\n", setting.subdevice );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tchannels => [" );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "subdevice => %i,\n", setting.subdevice );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "channels => [" );
 	for( i = 0; i < setting.num_channels; i++ )
 		fprintf( file, "%i,", setting.channels[ i ] );
 	fprintf( file, "],\n" );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tranges => [" );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "ranges => [" );
 	for( i = 0; i < setting.num_ranges; i++ )
 		fprintf( file, "%i,", setting.ranges[ i ] );
 	fprintf( file, "],\n" );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tarefs => [" );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "arefs => [" );
 	for( i = 0; i < setting.num_arefs; i++ )
 		fprintf( file, "%i,", setting.arefs[ i ] );
 	fprintf( file, "],\n" );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\tcaldacs =>\n" );
-	fprintf( file, "%s", indent );
-	fprintf( file, "\t[\n" );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "caldacs =>\n" );
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "[\n" );
 	for( i = 0; i < setting.num_caldacs; i++ )
 	{
 		write_caldac( file, setting.caldacs[ i ] );
 		fprintf( file, ",\n" );
 	}
-	fprintf( file, "%s", indent );
-	fprintf( file, "\t],\n" );
-
-
+	indent(file, baseNumTabs + 1);
+	fprintf( file, "],\n" );
+	indent(file, baseNumTabs + 1);
+	if(setting.soft_calibration.to_phys)
+	{
+		fprintf(file, "softcal_to_phys =>\n");
+		write_polynomial(file, setting.soft_calibration.to_phys);
+	}
+	if(setting.soft_calibration.from_phys)
+	{
+		indent(file, baseNumTabs + 1);
+		fprintf(file, "softcal_from_phys =>\n");
+		write_polynomial(file, setting.soft_calibration.from_phys);
+	}
 	fprintf( file, "%s", indent );
 	fprintf( file, "}" );
 }
