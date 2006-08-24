@@ -110,13 +110,11 @@ ComediSoftCalibrateApp::ComediSoftCalibrateApp(int argc, char **argv):
 	catch(const std::exception &err)
 	{
 		std::cerr << "Caught exception: " << err.what() << std::endl;
-		std::cerr << desc << std::endl;
+		std::cout << desc << std::endl;
 		throw;
 	}
 	boost::program_options::notify(vm);
-
 	_calibrators.push_back(boost::shared_ptr<Calibrator>(new NIMSeries::Calibrator()));
-	_comediDev.reset(new comedi::Device(_deviceFile));
 }
 
 ComediSoftCalibrateApp::~ComediSoftCalibrateApp()
@@ -129,6 +127,7 @@ void ComediSoftCalibrateApp::exec()
 		std::cout << desc << std::endl;
 		return;
 	}
+	_comediDev.reset(new comedi::Device(_deviceFile));
 	std::vector<boost::shared_ptr<Calibrator> >::iterator it;
 	for(it = _calibrators.begin(); it != _calibrators.end(); ++it)
 	{
