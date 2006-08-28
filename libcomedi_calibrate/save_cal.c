@@ -67,13 +67,13 @@ static void write_polynomial(FILE *file, const comedi_polynomial_t *polynomial)
 	indent(file, baseNumTabs);
 	fprintf(file, "{\n");
 	indent(file, baseNumTabs + 1);
-	fprintf(file, "expansion_origin => %g,\n", polynomial->expansion_origin);
+	fprintf(file, "expansion_origin => %.20e,\n", polynomial->expansion_origin);
 	indent(file, baseNumTabs + 1);
 	fprintf(file, "coefficients => [");
 	for(i = 0; i <= polynomial->order; ++i)
 	{
 		assert(i < COMEDI_MAX_NUM_POLYNOMIAL_COEFFICIENTS);
-		fprintf(file, "%g,", polynomial->coefficients[i]);
+		fprintf(file, "%.20e,", polynomial->coefficients[i]);
 	}
 	fprintf(file, "],\n");
 	indent(file, baseNumTabs);
