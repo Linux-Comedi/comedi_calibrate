@@ -69,9 +69,43 @@ CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device
 
 // Private functions
 
+/* try reading various calibration sources and see what they look like,
+ helpful for debugging new board models */
+void NIMSeries::Calibrator::dumpAICalibrationSources()
+{
+	unsigned posRefSource, negRefSource;
+	static const unsigned maxRefSource = 7;
+	for(posRefSource = 0; posRefSource <= maxRefSource; ++posRefSource)
+	{
+		for(negRefSource = 0; negRefSource <= maxRefSource; ++negRefSource)
+		{
+			std::cout << "trying positive reference " << posRefSource << ", negative reference " << negRefSource << std::endl;
+			_references->setReference(static_cast<enum References::PositiveCalSource>(posRefSource << References::positive_cal_shift),
+				static_cast<enum References::NegativeCalSource>(negRefSource << References::negative_cal_shift));
+			std::cout << "pwm set high" << std::endl;
+			_references->setPWM(1000, 0);
+			std::vector<double> readings = _references->readReferenceDouble(numSamples, _references->getMinSamplePeriodNanosec(), 0, settleNanosec);
+			double mean = estimateMean(readings);
+			std::cout << "estimate of mean = " << mean << "\n";
+			std::cout << "estimate of standard deviation = " << estimateStandardDeviation(readings, mean) << "\n";
+			std::cout << "estimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
+			std::cout << "pwm set low" << std::endl;
+			_references->setPWM(0, 1000);
+			readings = _references->readReferenceDouble(numSamples, _references->getMinSamplePeriodNanosec(), 0, settleNanosec);
+			mean = estimateMean(readings);
+			std::cout << "estimate of mean = " << mean << "\n";
+			std::cout << "estimate of standard deviation = " << estimateStandardDeviation(readings, mean) << "\n";
+			std::cout << "estimate of standard deviation of mean = " << estimateStandardDeviationOfMean(readings, mean) << "\n";
+			std::cout << "\n";
+		}
+	}
+	abort();
+}
+
 const SubdeviceCalibration NIMSeries::Calibrator::calibrateAISubdevice()
 {
 	checkAIBufferSize();
+// 	dumpAICalibrationSources();
 	std::map<unsigned, double> PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_10V, baseRange);
 	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
 	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
