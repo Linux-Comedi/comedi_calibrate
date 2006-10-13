@@ -426,7 +426,7 @@ int preobserve( calibration_setup_t *setup, int obs)
 
 void measure_observable( calibration_setup_t *setup, int obs)
 {
-	char s[32];
+	char s[100];
 	int n;
 	new_sv_t sv;
 
@@ -1004,7 +1004,7 @@ double check_gain_chan_x( calibration_setup_t *setup, linear_fit_t *l,unsigned i
 	new_sv_t sv;
 	double sum_err;
 	int sum_err_count=0;
-	char str[20];
+	char str[100];
 
 	n = caldac_maxdata(setup->dev, &setup->caldacs[cdac]) + 1;
 	memset(l,0,sizeof(*l));
@@ -1074,7 +1074,7 @@ double check_gain_chan_fine( calibration_setup_t *setup, linear_fit_t *l,unsigne
 	new_sv_t sv;
 	double sum_err;
 	int sum_err_count=0;
-	char str[20];
+	char str[100];
 	int fine_size = 10;
 
 	n=2*fine_size+1;
@@ -1271,7 +1271,7 @@ double read_chan( calibration_setup_t *setup, int adc,int range)
 {
 	int n;
 	new_sv_t sv;
-	char str[20];
+	char str[100];
 
 	my_sv_init(&sv, setup,  setup->ad_subdev,CR_PACK(adc,range,AREF_OTHER));
 
@@ -1566,13 +1566,12 @@ int sci_sprint_alt(char *s,double x,double y)
 	mindigit = pow(10,errsig);
 
 	if(maxsig<errsig)maxsig=errsig;
-
 	sigfigs = maxsig-errsig+2;
 
 	mantissa = x*pow(10,-maxsig);
 	error = y*pow(10,-errsig+1);
 
-	if(isnan(x)){
+	if(isnan(x) || isnan(y)){
 		return sprintf(s,"%g",x);
 	}
 	if(errsig==1 && maxsig<4 && maxsig>1){
