@@ -115,15 +115,16 @@ void write_calibration_setting( FILE *file, comedi_calibration_setting_t setting
 	}
 	indent(file, baseNumTabs + 1);
 	fprintf( file, "],\n" );
-	indent(file, baseNumTabs + 1);
 	if(setting.soft_calibration.to_phys)
 	{
+		indent(file, baseNumTabs + 1);
 		fprintf(file, "softcal_to_phys =>\n");
 		write_polynomial(file, setting.soft_calibration.to_phys);
 		fprintf( file, ",\n" );
 	}
 	if(setting.soft_calibration.from_phys)
 	{
+		indent(file, baseNumTabs + 1);
 		fprintf(file, "softcal_from_phys =>\n");
 		write_polynomial(file, setting.soft_calibration.from_phys);
 		fprintf( file, ",\n" );
