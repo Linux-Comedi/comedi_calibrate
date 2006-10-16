@@ -361,9 +361,9 @@ static void apply_appropriate_cal( calibration_setup_t *setup, comedi_insn insn 
 		return;
 	}
 	if( retval < 0 )
-		DPRINT( 1, "failed to apply ");
+		DPRINT( 1, "Failed to apply ");
 	else
-		DPRINT( 1, "applied ");
+		DPRINT( 1, "Applied ");
 	DPRINT( 1, "calibration for subdev %i, channel %i, range %i, aref %i\n", insn.subdev,
 		CR_CHAN( insn.chanspec ), CR_RANGE( insn.chanspec ),
 		CR_AREF( insn.chanspec ) );
@@ -1052,7 +1052,7 @@ double check_gain_chan_x( calibration_setup_t *setup, linear_fit_t *l,unsigned i
 
 	linear_fit_monotonic(l);
 
-	if(verbose>=2 || (verbose>=1 && fabs(l->slope/l->err_slope)>4.0)){
+	if(verbose>=2 || (verbose>=1 && (fabs(l->slope / l->err_slope) > 4.0 || isnan(l->slope / l->err_slope)))){
 		sci_sprint_alt(str,l->slope,l->err_slope);
 		printf("caldac[%d] gain=%s V/bit S_min=%g dof=%g\n",
 			cdac,str,l->S_min,l->dof);

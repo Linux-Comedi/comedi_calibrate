@@ -124,7 +124,7 @@ static struct board_struct boards[]={
 	{ "pci-6731", STATUS_GUESS, cal_ni_pci_6711, ni67xx_setup_observables, -1, -1},
 	{ "pci-6733", STATUS_GUESS, cal_ni_pci_6711, ni67xx_setup_observables, -1, -1},
 	{ "pxi-6711", STATUS_GUESS, cal_ni_pci_6711, ni67xx_setup_observables, -1, -1},
-	{ "pxi-6713", STATUS_GUESS, cal_ni_pci_6711, ni67xx_setup_observables, -1, -1},
+	{ "pxi-6713", STATUS_DONE, cal_ni_pci_6711, ni67xx_setup_observables, 0x1d4, 0x1d5},
 	{ "pxi-6731", STATUS_GUESS, cal_ni_pci_6711, ni67xx_setup_observables, -1, -1},
 	{ "pxi-6733", STATUS_GUESS, cal_ni_pci_6711, ni67xx_setup_observables, -1, -1},
 #if 0
@@ -1623,7 +1623,7 @@ static void ni67xx_setup_observables( calibration_setup_t *setup )
 	slope = ni67xx_unitless_adc_slope(setup);
 
 	/* calibration adc is very slow (15HZ) but accurate, so only sample a few times */
-	setup->sv_order = 1;
+	setup->sv_order = 0;
 
 	num_ao_channels = comedi_get_n_channels(setup->dev, setup->da_subdev);
 	assert(num_ao_channels >= 0);
