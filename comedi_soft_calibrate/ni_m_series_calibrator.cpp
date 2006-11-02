@@ -19,6 +19,8 @@
 #include <boost/array.hpp>
 #include "calibrator_misc.hpp"
 #include <cassert>
+#include <cerrno>
+#include <cmath>
 #include <cstring>
 #include <ext/stdio_filebuf.h>
 #include <iostream>
