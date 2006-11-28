@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <ext/stdio_filebuf.h>
 #include <iostream>
@@ -571,24 +572,35 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	assert(cmd.scan_begin_arg == samplePeriodNS);
 	_dev->command(&cmd);
 	std::vector<lsampl_t> longData(numSamples);
-	unsigned samplesRead;
+	std::size_t samplesRead;
+	int fd = dup(_dev->fileno());
+	if(fd < 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": dup failed with errno = " << errno;
+		throw std::runtime_error(message.str());
+	}
+	FILE *file = fdopen(fd, "r");
+	if(file == 0)
+	{
+		std::ostringstream message;
+		message << __FUNCTION__ << ": fdopen failed with errno = " << errno;
+		throw std::runtime_error(message.str());
+	}
 	if(_dev->subdeviceFlags(ADSubdev) & SDF_LSAMPL)
 	{
-		__gnu_cxx::stdio_filebuf<char> comediFile(_dev->fileno(), std::ios::in, false, static_cast<size_t>(BUFSIZ));
-		std::streamsize count = comediFile.sgetn(reinterpret_cast<char*>(&longData.at(0)), numSamples * sizeof(lsampl_t));
-		samplesRead = count / sizeof(lsampl_t);
+		samplesRead = fread(&longData.at(0), sizeof(lsampl_t), numSamples, file);
 	}else
 	{
-		__gnu_cxx::stdio_filebuf<char> comediFile(_dev->fileno(), std::ios::in, false, static_cast<size_t>(BUFSIZ));
 		std::vector<sampl_t> data(numSamples);
-		std::streamsize count = comediFile.sgetn(reinterpret_cast<char*>(&data.at(0)), numSamples * sizeof(sampl_t));
-		samplesRead = count / sizeof(sampl_t);
+		samplesRead = fread(&data.at(0), sizeof(sampl_t), numSamples, file);
 		std::copy(data.begin(), data.end(), longData.begin());
 	}
+	fclose(file);
 	if(samplesRead != numSamples)
 	{
 		std::ostringstream message;
-		message << __FUNCTION__ << ": failed to read " << numSamples << " samples from comedi device file, count = " << samplesRead << std::endl;
+		message << __FUNCTION__ << ": failed to read " << numSamples << " samples from comedi device file, count = " << samplesRead;
 		throw std::runtime_error(message.str());
 	}
 	return longData;
