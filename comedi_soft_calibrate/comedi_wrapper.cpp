@@ -52,7 +52,7 @@ unsigned comedi::Device::findSubdeviceByType(int type, unsigned startSubdevice) 
 
 std::string comedi::Device::driverName() const
 {
-	char *name = comedi_get_driver_name(_dev);
+	const char *name = comedi_get_driver_name(_dev);
 	if(name == 0)
 	{
 		std::ostringstream message;
@@ -64,7 +64,7 @@ std::string comedi::Device::driverName() const
 
 std::string comedi::Device::boardName() const
 {
-	char *name = comedi_get_board_name(_dev);
+	const char *name = comedi_get_board_name(_dev);
 	if(name == 0)
 	{
 		std::ostringstream message;
