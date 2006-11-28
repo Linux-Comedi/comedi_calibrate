@@ -60,7 +60,7 @@ struct calibration_setup_struct {
 	comedi_caldac_t caldacs[ N_CALDACS ];
 	unsigned int n_caldacs;
 	int (*do_cal) ( calibration_setup_t *setup );
-	char *cal_save_file_path;
+	const char *cal_save_file_path;
 	unsigned do_output : 1;
 	comedi_calibration_t *old_calibration;
 	comedi_calibration_t *new_calibration;

@@ -72,10 +72,10 @@ void help(void)
 typedef struct
 {
 	int verbose;
-	char *file_path;
-	char *save_file_path;
-	char *driver_name;
-	char *device_name;
+	const char *file_path;
+	const char *save_file_path;
+	const char *driver_name;
+	const char *device_name;
 	int do_reset;
 	int do_dump;
 	int do_calibrate;
@@ -197,9 +197,9 @@ int main(int argc, char *argv[])
 	if( options.save_file_path == NULL )
 		options.save_file_path = comedi_get_default_calibration_path( setup.dev );
 	if(!options.driver_name)
-		options.driver_name=comedi_get_driver_name( setup.dev );
+		options.driver_name = comedi_get_driver_name( setup.dev );
 	if(!options.device_name)
-		options.device_name=comedi_get_board_name( setup.dev );
+		options.device_name = comedi_get_board_name( setup.dev );
 
 	setup.ad_subdev=comedi_find_subdevice_by_type( setup.dev,COMEDI_SUBD_AI,0);
 	setup.da_subdev=comedi_find_subdevice_by_type( setup.dev,COMEDI_SUBD_AO,0);
