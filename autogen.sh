@@ -1,5 +1,4 @@
 #!/bin/sh
 
-autoreconf -i -f &&
-./configure --enable-maintainer-mode $*
+autoreconf -f -i
 
