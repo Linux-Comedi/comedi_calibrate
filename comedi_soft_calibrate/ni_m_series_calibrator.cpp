@@ -293,7 +293,7 @@ unsigned NIMSeries::Calibrator::smallestCalibratedAIRangeContaining(const std::v
 	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
 	unsigned i;
 	const comedi_range *smallestCRange = 0;
-	unsigned smallestRange;
+	unsigned smallestRange = 0;
 	for(i = 0; i < numAIRanges; ++i)
 	{
 		if(calibrated.at(i) == false) continue;
@@ -419,7 +419,6 @@ Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &A
 	measuredVoltages.push_back(AICalibration(measuredHighCode));
 
 	Polynomial fit;
-	const comedi_range *AOCRange = _dev->getRange(AOSubdevice, 0, AORange);
 	fit.expansionOrigin = 0.;
 	fit.coefficients = fitPolynomial(measuredVoltages, codes, fit.expansionOrigin, 1);
 	std::cout << "AO calibration for channel " << AOChannel << ", range " << AORange << " .\n";
@@ -450,7 +449,7 @@ unsigned NIMSeries::Calibrator::findAIRangeForAO(unsigned AORange) const
 	const double maxAOVoltage = _dev->getRange(DASubdev, 0, AORange)->max;
 	unsigned i;
 	const comedi_range *AICRange = 0;
-	unsigned AIRange;
+	unsigned AIRange = 0;
 	for(i = 0; i < numAIRanges; ++i)
 	{
 		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
