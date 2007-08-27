@@ -19,7 +19,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include "calibration_set.hpp"
-#include "comedi_wrapper.hpp"
+#include <comedilib.hpp>
 #include <string>
 #include <vector>
 
@@ -33,7 +33,7 @@ public:
 	virtual ~Calibrator() {}
 	virtual std::string supportedDriverName() const = 0;
 	virtual std::vector<std::string> supportedDeviceNames() const = 0;
-	virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev) = 0;
+	virtual CalibrationSet calibrate(const comedi::device &dev) = 0;
 private:
 };
 

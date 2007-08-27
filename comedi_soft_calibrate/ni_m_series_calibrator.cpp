@@ -57,15 +57,15 @@ std::vector<std::string> NIMSeries::Calibrator::supportedDeviceNames() const
 	return supportedDeviceNames;
 }
 
-CalibrationSet NIMSeries::Calibrator::calibrate(boost::shared_ptr<comedi::Device> dev)
+CalibrationSet NIMSeries::Calibrator::calibrate(const comedi::device &dev)
 {
 	_dev = dev;
 	_references.reset(new NIMSeries::References(_dev));
 	CalibrationSet calibration;
-	const unsigned AISubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	calibration[AISubdevice] = calibrateAISubdevice();
-	const unsigned AOSubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
-	calibration[AOSubdevice] = calibrateAOSubdevice(calibration[AISubdevice]);
+	comedi::subdevice AISubdevice = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	calibration[AISubdevice.index()] = calibrateAISubdevice();
+	comedi::subdevice AOSubdevice = _dev.find_subdevice_by_type(COMEDI_SUBD_AO);
+	calibration[AOSubdevice.index()] = calibrateAOSubdevice(calibration[AISubdevice.index()]);
 
 	return calibration;
 }
@@ -111,8 +111,8 @@ const SubdeviceCalibration NIMSeries::Calibrator::calibrateAISubdevice()
 // 	dumpAICalibrationSources();
 	std::map<unsigned, double> PWMCharacterization = characterizePWM(NIMSeries::References::POS_CAL_PWM_10V, baseRange);
 	Polynomial nonlinearityCorrection = calibrateAINonlinearity(PWMCharacterization);
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	const unsigned numAIRanges = ADSubdev.n_ranges();
 	SubdeviceCalibration AICalibration(true);
 	std::vector<bool> calibrated(numAIRanges, false);
 	std::cout << "calibrating base range " << baseRange << " ..." << std::endl;
@@ -144,7 +144,7 @@ const SubdeviceCalibration NIMSeries::Calibrator::calibrateAISubdevice()
 
 Polynomial NIMSeries::Calibrator::calibrateAINonlinearity(const std::map<unsigned, double> &PWMCharacterization)
 {
-	lsampl_t maxData = _dev->maxData(_dev->findSubdeviceByType(COMEDI_SUBD_AI));
+	lsampl_t maxData = _dev.find_subdevice_by_type(COMEDI_SUBD_AI).max_data();
 	std::map<unsigned, double>::const_iterator it;
 	std::vector<double> nominalCodes;
 	std::vector<double> measuredCodes;
@@ -182,8 +182,8 @@ Polynomial NIMSeries::Calibrator::calibrateAIRange(const Polynomial &PWMCalibrat
 	inversePWMCalibration.coefficients.at(0) = PWMCalibration.expansionOrigin;
 	inversePWMCalibration.coefficients.at(1) = 1. / PWMCalibration.coefficients.at(1);
 
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const comedi_range *cRange = _dev->getRange(ADSubdev, 0, range);
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	const comedi_range *cRange = ADSubdev.range(0, range);
 	unsigned upTicks = lrint(inversePWMCalibration(cRange->max * 0.9));
 	if(upTicks + minimumPWMPulseTicks > PWMPeriodTicks()) upTicks = PWMPeriodTicks() - minimumPWMPulseTicks;
 	setPWMUpTicks(upTicks);
@@ -289,15 +289,15 @@ Polynomial NIMSeries::Calibrator::calibrateAIGainAndOffset(const Polynomial &non
 
 unsigned NIMSeries::Calibrator::smallestCalibratedAIRangeContaining(const std::vector<bool> &calibrated, double rangeThreshold)
 {
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	const unsigned numAIRanges = ADSubdev.n_ranges();
 	unsigned i;
 	const comedi_range *smallestCRange = 0;
 	unsigned smallestRange = 0;
 	for(i = 0; i < numAIRanges; ++i)
 	{
 		if(calibrated.at(i) == false) continue;
-		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
+		const comedi_range *cRange = ADSubdev.range(0, i);
 		if(cRange->max > rangeThreshold && (smallestCRange == 0 || cRange->max < smallestCRange->max))
 		{
 			smallestRange = i;
@@ -317,13 +317,13 @@ void NIMSeries::Calibrator::calibrateAIRangesAboveThreshold(const Polynomial &PW
 	const Polynomial &nonlinearityCorrection, enum NIMSeries::References::PositiveCalSource posReferenceSource,
 	SubdeviceCalibration *AICalibration, std::vector<bool> *calibrated, double maxRangeThreshold)
 {
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	const unsigned numAIRanges = ADSubdev.n_ranges();
 	unsigned i;
 	for(i = 0; i < numAIRanges; ++i)
 	{
 		if(calibrated->at(i) == true) continue;
-		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
+		const comedi_range *cRange = ADSubdev.range(0, i);
 		if(cRange->max < maxRangeThreshold) continue;
 		std::cout << "calibrating range " << i << " ..." << std::endl;
 		AICalibration->insertPolynomial(calibrateAIRange(PWMCalibration, nonlinearityCorrection,
@@ -342,9 +342,9 @@ unsigned NIMSeries::Calibrator::PWMRoundedNumSamples(unsigned numSamples, unsign
 
 void NIMSeries::Calibrator::checkAIBufferSize()
 {
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
 	unsigned bytesPerSample;
-	if(_dev->subdeviceFlags(ADSubdev) & SDF_LSAMPL)
+	if(ADSubdev.flags() & SDF_LSAMPL)
 	{
 		bytesPerSample = sizeof(lsampl_t);
 	}else
@@ -352,15 +352,15 @@ void NIMSeries::Calibrator::checkAIBufferSize()
 		bytesPerSample = sizeof(sampl_t);
 	}
 	const unsigned requiredSize = bytesPerSample * PWMRoundedNumSamples(numSamples, _references->getMinSamplePeriodNanosec());
-	if(_dev->maxBufferSize(ADSubdev) < requiredSize)
+	if(ADSubdev.max_buffer_size() < requiredSize)
 	{
-		std::cerr << "Analog input buffer maximum size is " << _dev->maxBufferSize(ADSubdev) << " bytes, but we want " << requiredSize << " .\n" <<
+		std::cerr << "Analog input buffer maximum size is " << ADSubdev.max_buffer_size() << " bytes, but we want " << requiredSize << " .\n" <<
 			"If this fails (it will if you aren't root), you will need to use comedi_config to increase the size of the read buffer." << std::endl;
-		_dev->setMaxBufferSize(ADSubdev, requiredSize);
+		ADSubdev.set_max_buffer_size(requiredSize);
 	}
-	if(_dev->bufferSize(ADSubdev) < requiredSize)
+	if(ADSubdev.buffer_size() < requiredSize)
 	{
-		_dev->setBufferSize(ADSubdev, requiredSize);
+		ADSubdev.set_buffer_size(requiredSize);
 	}
 }
 
@@ -377,16 +377,16 @@ unsigned NIMSeries::Calibrator::PWMPeriodTicks() const
 
 const SubdeviceCalibration NIMSeries::Calibrator::calibrateAOSubdevice(const SubdeviceCalibration &AICalibration)
 {
-	const unsigned AOSubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
-	const unsigned numAORanges = _dev->nRanges(AOSubdevice);
-	const unsigned numAOChannels = _dev->nChannels(AOSubdevice);
+	comedi::subdevice AOSubdevice = _dev.find_subdevice_by_type(COMEDI_SUBD_AO);
+	const unsigned numAORanges = AOSubdevice.n_ranges();
+	const unsigned numAOChannels = AOSubdevice.n_channels();
 	unsigned channel, range;
 	SubdeviceCalibration AOCalibrations(false);
 	for(channel = 0; channel < numAOChannels; ++channel)
 	{
 		for(range = 0; range < numAORanges; ++range)
 		{
-			if(_dev->getRange(AOSubdevice, 0, range)->unit != UNIT_volt) continue;
+			if(AOSubdevice.range(0, range)->unit != UNIT_volt) continue;
 			const unsigned AIRange = findAIRangeForAO(range);
 			Polynomial calibration = calibrateAOChannelAndRange(AICalibration.polynomial(0, AIRange), AIRange, channel, range);
 			AOCalibrations.insertPolynomial(calibration, channel, range);
@@ -398,20 +398,20 @@ const SubdeviceCalibration NIMSeries::Calibrator::calibrateAOSubdevice(const Sub
 Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &AICalibration,
 	unsigned AIRange, unsigned AOChannel, unsigned AORange)
 {
-	const unsigned AOSubdevice = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
+	comedi::subdevice AOSubdevice = _dev.find_subdevice_by_type(COMEDI_SUBD_AO);
 	_references->setReference(AOChannel);
 	std::vector<double> codes;
 	std::vector<double> measuredVoltages;
 
-	const lsampl_t lowCode = lrint(_dev->maxData(AOSubdevice) * 0.1);
+	const lsampl_t lowCode = lrint(AOSubdevice.max_data() * 0.1);
 	codes.push_back(static_cast<double>(lowCode));
-	_dev->dataWrite(AOSubdevice, AOChannel, AORange, AREF_GROUND, lowCode);
+	AOSubdevice.data_write(AOChannel, AORange, AREF_GROUND, lowCode);
 	std::vector<double> readings = _references->readReferenceDouble(
 		numSamples, _references->getMinSamplePeriodNanosec(), AIRange, settleNanosec);
 	const double measuredLowCode = estimateMean(readings);
 	measuredVoltages.push_back(AICalibration(measuredLowCode));
 
-	_dev->dataWrite(AOSubdevice, AOChannel, AORange, AREF_GROUND, highCode(AIRange, AORange));
+	AOSubdevice.data_write(AOChannel, AORange, AREF_GROUND, highCode(AIRange, AORange));
 	codes.push_back(static_cast<double>(highCode(AIRange, AORange)));
 	readings = _references->readReferenceDouble(
 		numSamples, _references->getMinSamplePeriodNanosec(), AIRange, settleNanosec);
@@ -431,28 +431,28 @@ Polynomial NIMSeries::Calibrator::calibrateAOChannelAndRange(const Polynomial &A
 
 lsampl_t NIMSeries::Calibrator::highCode(unsigned AIRange, unsigned AORange) const
 {
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned DASubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
-	const comedi_range *AICRange = _dev->getRange(ADSubdev, 0, AIRange);
-	const comedi_range *AOCRange = _dev->getRange(DASubdev, 0, AORange);
-	if(AICRange->max >= AOCRange->max) return lrint(_dev->maxData(DASubdev) * 0.9);
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	comedi::subdevice DASubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AO);
+	const comedi_range *AICRange = ADSubdev.range(0, AIRange);
+	const comedi_range *AOCRange = DASubdev.range(0, AORange);
+	if(AICRange->max >= AOCRange->max) return lrint(DASubdev.max_data() * 0.9);
 	double fractionalCode = (0.9 * AICRange->max - AOCRange->min) / (AOCRange->max - AOCRange->min);
 	assert(fractionalCode >= 0. && fractionalCode <= 1.);
-	return lrint(_dev->maxData(DASubdev) * fractionalCode);
+	return lrint(DASubdev.max_data() * fractionalCode);
 }
 
 unsigned NIMSeries::Calibrator::findAIRangeForAO(unsigned AORange) const
 {
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	const unsigned DASubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AO);
-	const unsigned numAIRanges = _dev->nRanges(ADSubdev);
-	const double maxAOVoltage = _dev->getRange(DASubdev, 0, AORange)->max;
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	comedi::subdevice DASubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AO);
+	const unsigned numAIRanges = ADSubdev.n_ranges();
+	const double maxAOVoltage = DASubdev.range(0, AORange)->max;
 	unsigned i;
 	const comedi_range *AICRange = 0;
 	unsigned AIRange = 0;
 	for(i = 0; i < numAIRanges; ++i)
 	{
-		const comedi_range *cRange = _dev->getRange(ADSubdev, 0, i);
+		const comedi_range *cRange = ADSubdev.range(0, i);
 		if(AICRange == 0 ||
 			(cRange->max >= maxAOVoltage && cRange->max < AICRange->max) ||
 			(AICRange->max < maxAOVoltage && cRange->max > AICRange->max))
@@ -472,22 +472,18 @@ unsigned NIMSeries::Calibrator::findAIRangeForAO(unsigned AORange) const
 
 // References
 
-NIMSeries::References::References(boost::shared_ptr<comedi::Device> dev): _dev(dev)
+NIMSeries::References::References(const comedi::device &dev): _dev(dev)
 {
 }
 
 void NIMSeries::References::setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns, unsigned *actual_low_ns)
 {
 	comedi_insn pwm_insn;
-	int pwm_subdev = _dev->findSubdeviceByType(COMEDI_SUBD_CALIB);
-	if(pwm_subdev < 0)
-	{
-		throw std::runtime_error("Failed to find PWM subdevice.");
-	}
+	comedi::subdevice pwm_subdev = _dev.find_subdevice_by_type(COMEDI_SUBD_CALIB);
 	memset(&pwm_insn, 0, sizeof(pwm_insn));
 	pwm_insn.insn = INSN_CONFIG;
 	pwm_insn.n = 5;
-	pwm_insn.subdev = pwm_subdev;
+	pwm_insn.subdev = pwm_subdev.index();
 	std::vector<lsampl_t> config_data(pwm_insn.n);
 	config_data.at(0) = INSN_CONFIG_PWM_OUTPUT;
 	config_data.at(1) = TRIG_ROUND_NEAREST;
@@ -495,7 +491,7 @@ void NIMSeries::References::setPWM(unsigned high_ns, unsigned low_ns, unsigned *
 	config_data.at(3) = TRIG_ROUND_NEAREST;
 	config_data.at(4) = low_ns;
 	pwm_insn.data = &config_data.at(0);
-	_dev->doInsn(&pwm_insn);
+	_dev.do_insn(&pwm_insn);
 	if(actual_high_ns)
 		*actual_high_ns = config_data.at(2);
 	if(actual_low_ns)
@@ -526,8 +522,8 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	{
 		return std::vector<lsampl_t>();
 	}
-	const unsigned ADSubdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
-	_dev->dataReadHint(ADSubdev, 0 | CR_ALT_SOURCE | CR_ALT_FILTER, inputRange, AREF_DIFF);
+	comedi::subdevice ADSubdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
+	ADSubdev.data_read_hint(0 | CR_ALT_SOURCE | CR_ALT_FILTER, inputRange, AREF_DIFF);
 	struct timespec req;
 	req.tv_sec = 0;
 	req.tv_nsec = settleNanosec;
@@ -540,7 +536,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	comedi_cmd cmd;
 	memset(&cmd, 0, sizeof(cmd));
 	static const unsigned numChannels = 1;
-	cmd.subdev = ADSubdev;
+	cmd.subdev = ADSubdev.index();
 	cmd.start_src = TRIG_NOW;
 	cmd.scan_begin_src = TRIG_TIMER;
 	cmd.scan_begin_arg = samplePeriodNS;
@@ -559,7 +555,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 	int retval = 0;
 	for(i = 0; i < maxTests; ++i)
 	{
-		retval = _dev->commandTest(&cmd);
+		retval = _dev.command_test(&cmd);
 		if(retval == 0) break;
 	}
 	if(i == maxTests)
@@ -569,10 +565,10 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 		throw std::runtime_error(message.str());
 	}
 	assert(cmd.scan_begin_arg == samplePeriodNS);
-	_dev->command(&cmd);
+	_dev.command(&cmd);
 	std::vector<lsampl_t> longData(numSamples);
 	std::size_t samplesRead;
-	int fd = dup(_dev->fileno());
+	int fd = dup(_dev.fileno());
 	if(fd < 0)
 	{
 		std::ostringstream message;
@@ -586,7 +582,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 		message << __FUNCTION__ << ": fdopen failed with errno = " << errno;
 		throw std::runtime_error(message.str());
 	}
-	if(_dev->subdeviceFlags(ADSubdev) & SDF_LSAMPL)
+	if(ADSubdev.flags() & SDF_LSAMPL)
 	{
 		samplesRead = fread(&longData.at(0), sizeof(lsampl_t), numSamples, file);
 	}else
@@ -620,7 +616,7 @@ unsigned NIMSeries::References::getMinSamplePeriodNanosec() const
 	comedi_cmd cmd;
 	static const unsigned numChannels = 1;
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.subdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	cmd.subdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI).index();
 	cmd.start_src = TRIG_NOW;
 	cmd.scan_begin_src = TRIG_TIMER;
 	cmd.scan_begin_arg = 0;
@@ -633,7 +629,7 @@ unsigned NIMSeries::References::getMinSamplePeriodNanosec() const
 	unsigned chanlist[] = {0};
 	cmd.chanlist = chanlist;
 	cmd.chanlist_len = numChannels;
-	int retval = _dev->commandTest(&cmd);
+	int retval = _dev.command_test(&cmd);
 	assert(retval == 0 || retval >=3);
 	return cmd.scan_begin_arg;
 }
@@ -647,16 +643,16 @@ void NIMSeries::References::setReferenceBits(unsigned bits)
 	memset(&referenceSourceConfig, 0, sizeof(referenceSourceConfig));
 	referenceSourceConfig.insn = INSN_CONFIG;
 	referenceSourceConfig.n = refData.size();
-	referenceSourceConfig.subdev = _dev->findSubdeviceByType(COMEDI_SUBD_AI);
+	referenceSourceConfig.subdev = _dev.find_subdevice_by_type(COMEDI_SUBD_AI).index();
 	refData.at(0) = INSN_CONFIG_ALT_SOURCE;
 	refData.at(1) = bits;
 	referenceSourceConfig.data = &refData.at(0);
-	_dev->doInsn(&referenceSourceConfig);
+	_dev.do_insn(&referenceSourceConfig);
 }
 
 // EEPROM
 
-NIMSeries::EEPROM::EEPROM(boost::shared_ptr<comedi::Device> dev): _dev(dev)
+NIMSeries::EEPROM::EEPROM(const comedi::device &dev): _dev(dev)
 {
 }
 
@@ -669,7 +665,7 @@ float NIMSeries::EEPROM::referenceVoltage() const
 
 unsigned NIMSeries::EEPROM::readByte(unsigned address) const
 {
-	unsigned value = _dev->dataRead(_dev->findSubdeviceByType(COMEDI_SUBD_MEMORY), address, 0, 0);
+	unsigned value = _dev.find_subdevice_by_type(COMEDI_SUBD_MEMORY).data_read(address, 0, 0);
 	assert(value <= 0xff);
 	return value;
 }

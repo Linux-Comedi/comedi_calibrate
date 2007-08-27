@@ -47,7 +47,7 @@ namespace NIMSeries
 			NEG_CAL_GROUND2 = 6 << negative_cal_shift,
 			NEG_CAL_PWM_10V = 7 << negative_cal_shift,
 		};
-		References(boost::shared_ptr<comedi::Device> dev);
+		References(const comedi::device &dev);
 		void setPWM(unsigned high_ns, unsigned low_ns, unsigned *actual_high_ns = 0, unsigned *actual_low_ns = 0);
 		void setReference(enum PositiveCalSource posSource, enum NegativeCalSource NegSource);
 		void setReference(unsigned AOChannel);
@@ -57,7 +57,7 @@ namespace NIMSeries
 	private:
 		void setReferenceBits(unsigned bits);
 
-		boost::shared_ptr<comedi::Device> _dev;
+		comedi::device _dev;
 	};
 
 	/* Calibrator for National Instruments M-Series boards. */
@@ -67,7 +67,7 @@ namespace NIMSeries
 		Calibrator();
 		virtual std::string supportedDriverName() const {return "ni_pcimio";}
 		virtual std::vector<std::string> supportedDeviceNames() const;
-		virtual CalibrationSet calibrate(boost::shared_ptr<comedi::Device> dev);
+		virtual CalibrationSet calibrate(const comedi::device &dev);
 	private:
 		static const unsigned numSamples = 15000;
 		static const unsigned settleNanosec = 1000000;
@@ -104,14 +104,14 @@ namespace NIMSeries
 		lsampl_t highCode(unsigned AIRange, unsigned AORange) const;
 		void dumpAICalibrationSources();
 
-		boost::shared_ptr<comedi::Device> _dev;
+		comedi::device _dev;
 		boost::shared_ptr<References> _references;
 	};
 
 	class EEPROM
 	{
 	public:
-		EEPROM(boost::shared_ptr<comedi::Device> dev);
+		EEPROM(const comedi::device &dev);
 		float referenceVoltage() const;
 	private:
 		enum CalibrationAreaOffsets
@@ -122,7 +122,7 @@ namespace NIMSeries
 		unsigned readByte(unsigned address) const;
 		unsigned readUInt16(unsigned startAddress) const;
 		float readFloat(unsigned startAddress) const;
-		boost::shared_ptr<comedi::Device> _dev;
+		comedi::device _dev;
 	};
 };
 

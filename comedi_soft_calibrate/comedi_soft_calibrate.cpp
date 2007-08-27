@@ -19,7 +19,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include "calibrator.hpp"
 #include "../libcomedi_calibrate/comedi_calibrate_shared.h"
-#include "comedi_wrapper.hpp"
+#include <comedilib.hpp>
 #include <iostream>
 #include "ni_m_series_calibrator.hpp"
 #include <sstream>
@@ -97,7 +97,7 @@ private:
 	boost::program_options::variables_map vm;
 	std::string _deviceFile;
 	std::string _saveFile;
-	boost::shared_ptr<comedi::Device> _comediDev;
+	comedi::device _comediDev;
 	std::vector<boost::shared_ptr<Calibrator> > _calibrators;
 };
 
@@ -133,16 +133,16 @@ void ComediSoftCalibrateApp::exec()
 		std::cout << desc << std::endl;
 		return;
 	}
-	_comediDev.reset(new comedi::Device(_deviceFile));
+	_comediDev.open(_deviceFile);
 	std::vector<boost::shared_ptr<Calibrator> >::iterator it;
 	for(it = _calibrators.begin(); it != _calibrators.end(); ++it)
 	{
-		if((*it)->supportedDriverName() != _comediDev->driverName()) continue;
+		if((*it)->supportedDriverName() != _comediDev.driver_name()) continue;
 		std::vector<std::string> devices = (*it)->supportedDeviceNames();
 		std::vector<std::string>::iterator dit;
 		for(dit = devices.begin(); dit != devices.end(); ++dit)
 		{
-			if(*dit == _comediDev->boardName()) break;
+			if(*dit == _comediDev.board_name()) break;
 		}
 		if(dit == devices.end()) continue;
 		break;
@@ -150,17 +150,17 @@ void ComediSoftCalibrateApp::exec()
 	if(it == _calibrators.end())
 	{
 		std::ostringstream message;
-		message << "Failed to find calibrator for " << _comediDev->driverName() << " driver.";
+		message << "Failed to find calibrator for " << _comediDev.driver_name() << " driver.";
 		std::cerr << message.str() << std::endl;
 		throw std::invalid_argument(message.str().c_str());
 	}
 	CalibrationSet calibration = (*it)->calibrate(_comediDev);
 	if(_saveFile == "")
 	{
-		_saveFile = _comediDev->defaultCalibrationPath();
+		_saveFile = _comediDev.default_calibration_path();
 	}
-	writeCalibrationSet(calibration, _comediDev->driverName(),
-		_comediDev->boardName(), _saveFile);
+	writeCalibrationSet(calibration, _comediDev.driver_name(),
+		_comediDev.board_name(), _saveFile);
 }
 
 int main(int argc, char **argv)
