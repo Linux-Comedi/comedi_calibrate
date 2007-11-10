@@ -64,9 +64,16 @@ CalibrationSet NIMSeries::Calibrator::calibrate(const comedi::device &dev)
 	CalibrationSet calibration;
 	comedi::subdevice AISubdevice = _dev.find_subdevice_by_type(COMEDI_SUBD_AI);
 	calibration[AISubdevice.index()] = calibrateAISubdevice();
-	comedi::subdevice AOSubdevice = _dev.find_subdevice_by_type(COMEDI_SUBD_AO);
-	calibration[AOSubdevice.index()] = calibrateAOSubdevice(calibration[AISubdevice.index()]);
-
+	try
+	{
+		comedi::subdevice AOSubdevice = _dev.find_subdevice_by_type(COMEDI_SUBD_AO);
+		calibration[AOSubdevice.index()] = calibrateAOSubdevice(calibration[AISubdevice.index()]);
+	}
+	catch(const std::exception &error)
+	{
+		std::cout << "NOTICE: " << _dev.board_name() << " does not appear to have an analog output subdevice." << std::endl;
+		std::cout << "NOTICE: Skipping the analog ouput calibration." << std::endl;
+	}
 	return calibration;
 }
 
