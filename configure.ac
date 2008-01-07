@@ -12,11 +12,18 @@ AC_PROG_CXX
 AC_PROG_RANLIB
 
 AC_HEADER_STDC([])
-AC_CHECK_LIB([m],[main])
+AC_CHECK_LIB([m],[cos])
 
 #comedilib
 AC_CHECK_HEADER([comedilib.h],,AC_MSG_ERROR([Failed to find comedilib.h.]))
 AC_CHECK_LIB([comedi],[comedi_open],,AC_MSG_ERROR([Failed to find libcomedi.]))
+
+# GNU Scientific Library
+AC_CHECK_HEADER([gsl/gsl_matrix.h],,AC_MSG_ERROR([Failed to find gsl/gsl_matrix.h]))
+AC_CHECK_HEADER([gsl/gsl_multifit.h],,AC_MSG_ERROR([Failed to find gsl/gsl_multifit.h]))
+AC_CHECK_HEADER([gsl/gsl_statistics.h],,AC_MSG_ERROR([Failed to find gsl/gsl_statistics.h]))
+AC_CHECK_LIB([gslcblas],[cblas_dgemm],,AC_MSG_ERROR([Failed to find libgslcblas.]))
+AC_CHECK_LIB([gsl],[gsl_blas_dgemm],,AC_MSG_ERROR([Failed to find libgsl.]))
 
 #boost/program_options
 AC_LANG_PUSH(C++)
