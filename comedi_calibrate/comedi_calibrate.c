@@ -951,6 +951,7 @@ void update_caldac( calibration_setup_t *setup, int caldac_index,
 	int value )
 {
 	int ret;
+	comedi_caldac_t *dac;
 
 	if( caldac_index < 0 ) return;
 	if( caldac_index >= setup->n_caldacs )
@@ -962,7 +963,7 @@ void update_caldac( calibration_setup_t *setup, int caldac_index,
 		DPRINT(1,"caldac set out of range (%d<0)\n", value);
 		value = 0;
 	}
-	comedi_caldac_t *dac = &setup->caldacs[ caldac_index ];
+	dac = &setup->caldacs[ caldac_index ];
 	if(value > caldac_maxdata(setup->dev, dac)) {
 		DPRINT(1,"caldac set out of range (%d>%d)\n",
 			value, caldac_maxdata(setup->dev, dac));
