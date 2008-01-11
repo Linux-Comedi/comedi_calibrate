@@ -953,7 +953,7 @@ void update_caldac( calibration_setup_t *setup, int caldac_index,
 	int ret;
 
 	if( caldac_index < 0 ) return;
-	if( caldac_index > setup->n_caldacs )
+	if( caldac_index >= setup->n_caldacs )
 	{
 		fprintf( stderr, "invalid caldac index\n" );
 		return;
