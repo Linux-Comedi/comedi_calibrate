@@ -94,7 +94,7 @@ static struct board_struct boards[]={
 	{ "DAQCard-6036E", STATUS_DONE, cal_ni_daqcard_6036e, ni_setup_observables, 0x1ab, 0x1ac },
 	{ "DAQCard-6062E", STATUS_DONE, cal_ni_daqcard_6062e, ni_setup_observables, 0x1a9, 0x1aa },
 	{ "pci-mio-16e-1", STATUS_DONE, cal_ni_pci_mio_16e_1, ni_setup_observables, 0x1a9, 0x1aa },
-	{ "pci-mio-16e-4", STATUS_SOME, cal_ni_pci_mio_16e_4, ni_setup_observables, 0x1a9, 0x1aa },
+	{ "pci-mio-16e-4", STATUS_DONE, cal_ni_pci_mio_16e_4, ni_setup_observables, 0x1a9, 0x1aa },
 	{ "pci-mio-16xe-10", STATUS_DONE,	cal_ni_pci_mio_16xe_10,	ni_setup_observables, 0x1ae, 0x1af },
 	{ "pci-mio-16xe-50", STATUS_SOME, cal_ni_pci_mio_16xe_50, ni_setup_observables, 0x1b5, 0x1b6 },
 	{ "pci-6014", STATUS_DONE, cal_ni_pci_6014, ni_setup_observables, 0x1ab, 0x1ac },
