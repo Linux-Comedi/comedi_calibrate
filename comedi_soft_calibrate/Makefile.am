@@ -9,7 +9,7 @@ comedi_soft_calibrate_LDADD = ../libcomedi_calibrate/libcomedi_calibrate.a \
 	-lcomedi -lboost_program_options -lgsl -lgslcblas -lm
 
 install-data-local:
-	$(INSTALL) -d $(localstatedir)/lib/comedi/calibrations
+	$(INSTALL) -d $(DESTDIR)$(localstatedir)/lib/comedi/calibrations
 
 EXTRA_DIST = results
 
