@@ -36,6 +36,7 @@ Makefile
 comedi_calibrate/Makefile
 comedi_soft_calibrate/Makefile
 libcomedi_calibrate/Makefile
+man/Makefile
 ])
 
 AC_OUTPUT
