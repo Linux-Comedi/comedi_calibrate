@@ -14,17 +14,9 @@ AC_PROG_RANLIB
 AC_HEADER_STDC([])
 AC_CHECK_LIB([m],[cos])
 
-AC_ARG_ENABLE([comedilib-checking],
-	[AS_HELP_STRING([--disable-comedilib-checking],
-		[Disables checking of comedilib for package maintainers])],
-	[ENABLE_COMEDILIBCHECK=$enableval],[ENABLE_COMEDILIBCHECK="yes"])
-if test "$ENABLE_COMEDILIBCHECK" == "yes"; then
 #comedilib
-AC_CHECK_LIB([comedi],[comedi_open],,AC_MSG_ERROR([Failed to find libcomedi.]))
-fi
-
-#comedilib headers
 AC_CHECK_HEADER([comedilib.h],,AC_MSG_ERROR([Failed to find comedilib.h.]))
+AC_CHECK_LIB([comedi],[comedi_open],,AC_MSG_ERROR([Failed to find libcomedi.]))
 
 # GNU Scientific Library
 AC_CHECK_HEADER([gsl/gsl_matrix.h],,AC_MSG_ERROR([Failed to find gsl/gsl_matrix.h]))
