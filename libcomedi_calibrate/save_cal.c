@@ -34,14 +34,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 static void indent(FILE *file, unsigned numTabs)
 {
-	unsigned i;
-	char *string = malloc(numTabs + 1);
-	assert(string);
-	for(i = 0; i < numTabs; ++i)
-		string[i] = '\t';
-	string[i] = '\0';
-	fprintf(file, string);
-	free(string);
+	while (numTabs--)
+		fputc('\t', file);
 }
 
 static void write_caldac( FILE *file, comedi_caldac_t caldac )
