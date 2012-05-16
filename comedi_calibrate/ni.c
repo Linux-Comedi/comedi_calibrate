@@ -39,15 +39,15 @@ struct board_struct{
 	char *name;
 	int status;
 	int (*cal)( calibration_setup_t *setup);
-	void (*setup_observables)( calibration_setup_t *setup );
+	int (*setup_observables)( calibration_setup_t *setup );
 	int ref_eeprom_lsb;
 	int ref_eeprom_msb;
 };
 
 static int ni_setup_board( calibration_setup_t *setup , const char *device_name );
-static void ni_setup_observables( calibration_setup_t *setup );
-static void ni_setup_observables_611x( calibration_setup_t *setup );
-static void ni67xx_setup_observables( calibration_setup_t *setup );
+static int ni_setup_observables( calibration_setup_t *setup );
+static int ni_setup_observables_611x( calibration_setup_t *setup );
+static int ni67xx_setup_observables( calibration_setup_t *setup );
 
 static int cal_ni_at_mio_16de_10(calibration_setup_t *setup);
 static int cal_ni_at_mio_16e_2(calibration_setup_t *setup);
@@ -303,7 +303,8 @@ static int ni_setup_board( calibration_setup_t *setup, const char *device_name )
 			setup->status = boards[i].status;
 			setup->do_cal = boards[i].cal;
 			setup->private_data = &boards[ i ];
-			boards[i].setup_observables( setup );
+			if( boards[i].setup_observables( setup ) < 0 )
+				return -1;
 			break;
 		}
 	}
@@ -311,7 +312,7 @@ static int ni_setup_board( calibration_setup_t *setup, const char *device_name )
 	return 0;
 }
 
-static void ni_setup_ao_observables( calibration_setup_t *setup )
+static int ni_setup_ao_observables( calibration_setup_t *setup )
 {
 	observable *o;
 	comedi_insn tmpl, po_tmpl;
@@ -341,7 +342,12 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 		/* ao zero offset */
 		o = setup->observables + ni_ao_zero_offset( channel );
 		assert( o->name == NULL );
-		asprintf( &o->name, "ao %i, zero offset, low gain", channel );
+		if( asprintf( &o->name, "ao %i, zero offset, low gain", channel ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK(channel,ao_bipolar_lowgain,0);
 		o->preobserve_insn.data = o->preobserve_data;
@@ -355,7 +361,12 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 		/* ao gain */
 		o = setup->observables + ni_ao_reference( channel );
 		assert( o->name == NULL );
-		asprintf( &o->name, "ao %i, reference voltage, low gain", channel );
+		if( asprintf( &o->name, "ao %i, reference voltage, low gain", channel ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK(channel,ao_bipolar_lowgain,0);
 		o->preobserve_insn.data = o->preobserve_data;
@@ -369,7 +380,12 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 		/* ao linearity, mid */
 		o = setup->observables + ni_ao_mid_linearity( channel );
 		assert( o->name == NULL );
-		asprintf( &o->name, "ao %i, linearity (mid), low gain", channel );
+		if( asprintf( &o->name, "ao %i, linearity (mid), low gain", channel ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK(channel,ao_bipolar_lowgain,0);
 		o->preobserve_insn.data = o->preobserve_data;
@@ -385,7 +401,12 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 			/* ao unipolar zero offset */
 			o = setup->observables + ni_ao_unip_zero_offset( channel );
 			assert( o->name == NULL );
-			asprintf( &o->name, "ao %i, unipolar zero offset, low gain", channel );
+			if( asprintf( &o->name, "ao %i, unipolar zero offset, low gain", channel ) < 0 )
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->preobserve_insn = po_tmpl;
 			o->preobserve_insn.chanspec = CR_PACK(channel,ao_unipolar_lowgain,0);
 			o->preobserve_insn.data = o->preobserve_data;
@@ -399,7 +420,12 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 			/* ao unipolar gain */
 			o = setup->observables + ni_ao_unip_reference( channel );
 			assert( o->name == NULL );
-			asprintf( &o->name, "ao %i, unipolar high, low gain", channel );
+			if( asprintf( &o->name, "ao %i, unipolar high, low gain", channel ) < 0 )
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->preobserve_insn = po_tmpl;
 			o->preobserve_insn.chanspec = CR_PACK(channel,ao_unipolar_lowgain,0);
 			o->preobserve_insn.data = o->preobserve_data;
@@ -413,7 +439,12 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 			/* ao unipolar linearity, mid */
 			o = setup->observables + ni_ao_unip_mid_linearity( channel );
 			assert( o->name == NULL );
-			asprintf( &o->name, "ao %i, unipolar linearity (mid), low gain", channel );
+			if( asprintf( &o->name, "ao %i, unipolar linearity (mid), low gain", channel ) < 0 )
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->preobserve_insn = po_tmpl;
 			o->preobserve_insn.chanspec = CR_PACK(channel,ao_unipolar_lowgain,0);
 			o->preobserve_insn.data = o->preobserve_data;
@@ -427,7 +458,12 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 			/* ao unipolar linearity, low */
 			o = setup->observables + ni_ao_unip_low_linearity( channel );
 			assert( o->name == NULL );
-			asprintf( &o->name, "ao %i, unipolar linearity (low), low gain", channel );
+			if( asprintf( &o->name, "ao %i, unipolar linearity (low), low gain", channel ) < 0 )
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->preobserve_insn = po_tmpl;
 			o->preobserve_insn.chanspec = CR_PACK(channel,ao_unipolar_lowgain,0);
 			o->preobserve_insn.data = o->preobserve_data;
@@ -441,7 +477,7 @@ static void ni_setup_ao_observables( calibration_setup_t *setup )
 	}
 }
 
-static void ni_setup_observables( calibration_setup_t *setup )
+static int ni_setup_observables( calibration_setup_t *setup )
 {
 	comedi_insn tmpl;
 	int bipolar_lowgain;
@@ -536,7 +572,9 @@ static void ni_setup_observables( calibration_setup_t *setup )
 	}
 
 	if(setup->da_subdev >= 0)
-		ni_setup_ao_observables( setup );
+		return ni_setup_ao_observables( setup );
+
+	return 0;
 }
 
 /* for +-50V and +-20V ranges, the reference source goes 0V
@@ -578,7 +616,7 @@ static void reference_target_611x( calibration_setup_t *setup,
 	o->target = target;
 }
 
-static void ni_setup_observables_611x( calibration_setup_t *setup )
+static int ni_setup_observables_611x( calibration_setup_t *setup )
 {
 	comedi_insn tmpl;
 	comedi_insn po_tmpl;
@@ -611,8 +649,13 @@ static void ni_setup_observables_611x( calibration_setup_t *setup )
 			/* 0 offset */
 			o = setup->observables + ni_zero_offset_611x( setup, channel, range );
 			assert( o->name == NULL );
-			asprintf( &o->name, "ai, ch %i, range %i, zero offset",
-				channel, range );
+			if( asprintf( &o->name, "ai, ch %i, range %i, zero offset",
+					channel, range ) < 0 )
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->observe_insn = tmpl;
 			o->observe_insn.chanspec = CR_PACK( channel, range, AREF_DIFF )
 				| CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -622,8 +665,13 @@ static void ni_setup_observables_611x( calibration_setup_t *setup )
 			/* voltage reference */
 			o = setup->observables + ni_reference_611x( setup, channel, range );
 			assert( o->name == NULL );
-			asprintf( &o->name, "ai, ch %i, range %i, voltage reference",
-				channel, range );
+			if( asprintf( &o->name, "ai, ch %i, range %i, voltage reference",
+					channel, range ) < 0 )
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->observe_insn = tmpl;
 			o->observe_insn.chanspec = CR_PACK( channel, range, AREF_DIFF )
 				| CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -643,7 +691,12 @@ static void ni_setup_observables_611x( calibration_setup_t *setup )
 		/* ao zero offset */
 		o = setup->observables + ni_ao_zero_offset_611x( setup, channel, 0 );
 		assert( o->name == NULL );
-		asprintf( &o->name, "ao ch %i, zero offset", channel );
+		if( asprintf( &o->name, "ao ch %i, zero offset", channel ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK( channel, 0, AREF_GROUND );
 		o->preobserve_insn.data = o->preobserve_data;
@@ -656,7 +709,12 @@ static void ni_setup_observables_611x( calibration_setup_t *setup )
 		/* ao gain */
 		o = setup->observables + ni_ao_reference_611x( setup, channel, 0 );
 		assert( o->name == NULL );
-		asprintf( &o->name, "ao ch %i, reference voltage", channel );
+		if( asprintf( &o->name, "ao ch %i, reference voltage", channel ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK( channel, 0, AREF_GROUND );
 		o->preobserve_insn.data = o->preobserve_data;
@@ -668,6 +726,8 @@ static void ni_setup_observables_611x( calibration_setup_t *setup )
 	}
 
 	setup->n_observables = num_ao_observables_611x + 2 * num_ai_ranges * num_ai_channels;
+
+	return 0;
 }
 
 static int cal_ni_daqcard_ai_16xe_50(calibration_setup_t *setup)
@@ -1596,7 +1656,7 @@ static void ni67xx_set_target( calibration_setup_t *setup, int obs, double targe
 	setup->observables[obs].target += ni67xx_unitless_adc_offset;
 }
 
-static void ni67xx_setup_observables( calibration_setup_t *setup )
+static int ni67xx_setup_observables( calibration_setup_t *setup )
 {
 	comedi_insn tmpl, po_tmpl;
 	observable *o;
@@ -1630,7 +1690,12 @@ static void ni67xx_setup_observables( calibration_setup_t *setup )
 			i, 0);
 		o->reference_source = -1;
 		assert( o->name == NULL );
-		asprintf(&o->name, "dac%i ground, ground referenced", i);
+		if( asprintf(&o->name, "dac%i ground, ground referenced", i) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK(i, 0, AREF_GROUND);
 		o->preobserve_insn.data = o->preobserve_data;
@@ -1643,7 +1708,12 @@ static void ni67xx_setup_observables( calibration_setup_t *setup )
 			i, 0);
 		o->reference_source = -1;
 		assert( o->name == NULL );
-		asprintf(&o->name, "dac%i mid, ground referenced", i);
+		if( asprintf(&o->name, "dac%i mid, ground referenced", i) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK(i, 0, AREF_GROUND);
 		o->preobserve_insn.data = o->preobserve_data;
@@ -1655,7 +1725,12 @@ static void ni67xx_setup_observables( calibration_setup_t *setup )
 		o = setup->observables + ni67xx_ao_high_observable_index( setup, i, 0);
 		o->reference_source = -1;
 		assert( o->name == NULL );
-		asprintf(&o->name, "dac%i high, ground referenced", i);
+		if( asprintf(&o->name, "dac%i high, ground referenced", i) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->preobserve_insn = po_tmpl;
 		o->preobserve_insn.chanspec = CR_PACK( i, 0, AREF_GROUND );
 		o->preobserve_insn.data = o->preobserve_data;
@@ -1665,7 +1740,7 @@ static void ni67xx_setup_observables( calibration_setup_t *setup )
 		setup->n_observables++;
 	}
 
-	return;
+	return 0;
 }
 
 static int cal_ni_pci_6711(calibration_setup_t *setup)
