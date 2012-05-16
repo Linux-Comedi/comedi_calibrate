@@ -285,12 +285,27 @@ ok:
 	if(options.do_calibrate && setup.do_cal)
 	{
 		setup.new_calibration = malloc( sizeof( comedi_calibration_t ) );
-		assert( setup.new_calibration );
+		if( setup.new_calibration == NULL )
+		{
+			errno = ENOMEM;
+			perror(NULL);
+			return 1;
+		}
 		memset( setup.new_calibration, 0, sizeof( comedi_calibration_t ) );
 		setup.new_calibration->driver_name = strdup( comedi_get_driver_name( setup.dev ) );
-		assert( setup.new_calibration->driver_name != NULL );
+		if( setup.new_calibration->driver_name == NULL )
+		{
+			errno = ENOMEM;
+			perror(NULL);
+			return 1;
+		}
 		setup.new_calibration->board_name = strdup( comedi_get_board_name( setup.dev ) );
-		assert( setup.new_calibration->board_name != NULL );
+		if( setup.new_calibration->board_name == NULL )
+		{
+			errno = ENOMEM;
+			perror(NULL);
+			return 1;
+		}
 		retval = setup.do_cal( &setup );
 		if( retval < 0 )
 		{
