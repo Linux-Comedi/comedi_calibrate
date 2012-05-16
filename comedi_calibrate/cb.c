@@ -281,8 +281,13 @@ static int init_observables_1xxx( calibration_setup_t *setup )
 		o = setup->observables + ai_ground_observable_1xxx( setup, 0, range );
 		o->reference_source = CS_1XXX_GROUND;
 		assert( o->name == NULL );
-		asprintf( &o->name, "calibration source %i, range %i, ground referenced",
-			o->reference_source, range );
+		if( asprintf( &o->name, "calibration source %i, range %i, ground referenced",
+				o->reference_source, range ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->observe_insn = tmpl;
 		o->observe_insn.chanspec = CR_PACK( 0, range, AREF_GROUND) |
 			CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -294,8 +299,13 @@ static int init_observables_1xxx( calibration_setup_t *setup )
 		if( retval < 0 ) return -1;
 		o->reference_source = retval;
 		assert( o->name == NULL );
-		asprintf( &o->name, "calibration source %i, range %i, ground referenced",
-			o->reference_source, range );
+		if( asprintf( &o->name, "calibration source %i, range %i, ground referenced",
+				o->reference_source, range ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->observe_insn = tmpl;
 		o->observe_insn.chanspec = CR_PACK( 0, range, AREF_GROUND) |
 			CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -329,8 +339,13 @@ static int init_observables_1xxx( calibration_setup_t *setup )
 				o = setup->observables + ao_ground_observable_1xxx( setup, channel, range );
 				o->reference_source = CS_1XXX_DAC( channel );
 				assert( o->name == NULL );
-				asprintf( &o->name, "DAC ground calibration source, ch %i, range %i",
-					channel, range );
+				if( asprintf( &o->name, "DAC ground calibration source, ch %i, range %i",
+						channel, range ) < 0 )
+				{
+					errno = ENOMEM;
+					perror( NULL );
+					return -1;
+				}
 				o->preobserve_insn = po_tmpl;
 				o->preobserve_insn.chanspec = CR_PACK( channel, range, AREF_GROUND );
 				o->preobserve_insn.data = o->preobserve_data;
@@ -343,8 +358,13 @@ static int init_observables_1xxx( calibration_setup_t *setup )
 				o = setup->observables + ao_high_observable_1xxx( setup, channel, range );
 				o->reference_source = CS_1XXX_DAC( channel );
 				assert( o->name == NULL );
-				asprintf( &o->name, "DAC high calibration source, ch %i, range %i", channel,
-					range );
+				if( asprintf( &o->name, "DAC high calibration source, ch %i, range %i", channel,
+						range ) < 0 )
+				{
+					errno = ENOMEM;
+					perror( NULL );
+					return -1;
+				}
 				o->preobserve_insn = po_tmpl;
 				o->preobserve_insn.chanspec = CR_PACK( channel , range, AREF_GROUND );
 				o->preobserve_insn.data = o->preobserve_data;
