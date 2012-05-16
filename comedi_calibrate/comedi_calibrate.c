@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 		fprintf( stderr, "comedi_open() failed, with device file name: %s\n",
 			options.file_path );
 		comedi_perror("comedi_open");
-		exit(0);
+		return 1;
 	}
 
 	if( options.save_file_path == NULL )
