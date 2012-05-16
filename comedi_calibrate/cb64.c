@@ -385,8 +385,13 @@ static int init_observables_64xx( calibration_setup_t *setup )
 		if( retval < 0 ) return -1;
 		o->reference_source = retval;
 		assert( o->name == NULL );
-		asprintf( &o->name, "calibration source %i, range %i, ground referenced",
-			o->reference_source, range );
+		if( asprintf( &o->name, "calibration source %i, range %i, ground referenced",
+				o->reference_source, range ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->observe_insn = tmpl;
 		o->observe_insn.chanspec = CR_PACK( 0, range, AREF_GROUND) | CR_ALT_SOURCE | CR_ALT_FILTER;
 		o->target = 0.0;
@@ -397,8 +402,13 @@ static int init_observables_64xx( calibration_setup_t *setup )
 		if( retval < 0 ) return -1;
 		o->reference_source = retval;
 		assert( o->name == NULL );
-		asprintf( &o->name, "calibration source %i, range %i, ground referenced",
-			o->reference_source, range );
+		if( asprintf( &o->name, "calibration source %i, range %i, ground referenced",
+				o->reference_source, range ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->name = "calibration source, 10V bipolar range, ground referenced";
 		o->observe_insn = tmpl;
 		o->observe_insn.chanspec = CR_PACK( 0, range, AREF_GROUND) | CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -436,7 +446,12 @@ static int init_observables_64xx( calibration_setup_t *setup )
 					dac_chan, range );
 				o->reference_source = ao_cal_src_64xx( dac_chan );
 				assert( o->name == NULL );
-				asprintf( &o->name, "dac%i low, range %i, ground referenced", dac_chan, range );
+				if( asprintf( &o->name, "dac%i low, range %i, ground referenced", dac_chan, range ) < 0 )
+				{
+					errno = ENOMEM;
+					perror( NULL );
+					return -1;
+				}
 				o->preobserve_insn = po_tmpl;
 				o->preobserve_insn.chanspec = CR_PACK( dac_chan, range, AREF_GROUND );
 				o->preobserve_insn.data = o->preobserve_data;
@@ -448,7 +463,12 @@ static int init_observables_64xx( calibration_setup_t *setup )
 				o = setup->observables + ao_high_observable_index_64xx( setup, dac_chan, range );
 				o->reference_source = ao_cal_src_64xx( dac_chan );
 				assert( o->name == NULL );
-				asprintf( &o->name, "dac%i high, range %i, ground referenced", dac_chan, range );
+				if( asprintf( &o->name, "dac%i high, range %i, ground referenced", dac_chan, range ) < 0 )
+				{
+					errno = ENOMEM;
+					perror( NULL );
+					return -1;
+				}
 				o->preobserve_insn = po_tmpl;
 				o->preobserve_insn.chanspec = CR_PACK( dac_chan, range, AREF_GROUND );
 				o->preobserve_insn.data = o->preobserve_data;
@@ -609,8 +629,13 @@ static int init_observables_60xx( calibration_setup_t *setup )
 		o = setup->observables + ai_ground_observable_index_60xx( setup, 0, i );
 		o->reference_source = CAL_SRC_GROUND;
 		assert( o->name == NULL );
-		asprintf( &o->name, "calibration source %i, range %i, ground referenced",
-			o->reference_source, i );
+		if( asprintf( &o->name, "calibration source %i, range %i, ground referenced",
+				o->reference_source, i ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->observe_insn = tmpl;
 		o->observe_insn.chanspec = CR_PACK( 0, i, AREF_GROUND) | CR_ALT_SOURCE | CR_ALT_FILTER;
 		o->target = 0.0;
@@ -621,8 +646,13 @@ static int init_observables_60xx( calibration_setup_t *setup )
 		if( retval < 0 ) return -1;
 		o->reference_source = retval;
 		assert( o->name == NULL );
-		asprintf( &o->name, "calibration source %i, range %i, ground referenced",
-			o->reference_source, i );
+		if( asprintf( &o->name, "calibration source %i, range %i, ground referenced",
+				o->reference_source, i ) < 0 )
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->observe_insn = tmpl;
 		o->observe_insn.chanspec = CR_PACK( 0, i, AREF_GROUND) | CR_ALT_SOURCE | CR_ALT_FILTER;
 		retval = ai_cal_src_voltage_60xx( setup, o->reference_source, &target );
@@ -656,7 +686,12 @@ static int init_observables_60xx( calibration_setup_t *setup )
 					dac_chan, i );
 				o->reference_source = ao_cal_src_60xx( dac_chan );
 				assert( o->name == NULL );
-				asprintf( &o->name, "dac%i low, range %i, ground referenced", dac_chan, i );
+				if( asprintf( &o->name, "dac%i low, range %i, ground referenced", dac_chan, i ) < 0 )
+				{
+					errno = ENOMEM;
+					perror( NULL );
+					return -1;
+				}
 				o->preobserve_insn = po_tmpl;
 				o->preobserve_insn.chanspec = CR_PACK( dac_chan, i, AREF_GROUND );
 				o->preobserve_insn.data = o->preobserve_data;
@@ -668,7 +703,12 @@ static int init_observables_60xx( calibration_setup_t *setup )
 				o = setup->observables + ao_high_observable_index_60xx( setup, dac_chan, i );
 				o->reference_source = ao_cal_src_60xx( dac_chan );
 				assert( o->name == NULL );
-				asprintf( &o->name, "dac%i high, range %i, ground referenced", dac_chan, i );
+				if( asprintf( &o->name, "dac%i high, range %i, ground referenced", dac_chan, i ) < 0 )
+				{
+					errno = ENOMEM;
+					perror( NULL );
+					return -1;
+				}
 				o->preobserve_insn = po_tmpl;
 				o->preobserve_insn.chanspec = CR_PACK( dac_chan, i, AREF_GROUND );
 				o->preobserve_insn.data = o->preobserve_data;
@@ -771,8 +811,13 @@ static int init_observables_4020( calibration_setup_t *setup )
 		{
 			o = setup->observables + ai_low_observable_index_4020( setup, channel, range );
 			assert( o->name == NULL );
-			asprintf( &o->name, "ground calibration source, ch %i, range %i, ground referenced",
-				channel, range );
+			if( asprintf( &o->name, "ground calibration source, ch %i, range %i, ground referenced",
+					channel, range ) < 0 )
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->reference_source = CS_4020_GROUND;
 			o->observe_insn = tmpl;
 			o->observe_insn.chanspec = CR_PACK( channel, range, AREF_GROUND) | CR_ALT_SOURCE | CR_ALT_FILTER;
@@ -784,8 +829,13 @@ static int init_observables_4020( calibration_setup_t *setup )
 			if( retval < 0 ) return -1;
 			o->reference_source = retval;
 			assert( o->name == NULL );
-			asprintf( &o->name, "calibration source %i, ch %i, range %i, ground referenced",
-				o->reference_source, channel, range );
+			if( asprintf( &o->name, "calibration source %i, ch %i, range %i, ground referenced",
+					o->reference_source, channel, range ) < 0)
+			{
+				errno = ENOMEM;
+				perror( NULL );
+				return -1;
+			}
 			o->observe_insn = tmpl;
 			o->observe_insn.chanspec = CR_PACK( channel, range, AREF_GROUND) | CR_ALT_SOURCE | CR_ALT_FILTER;
 			retval = cb_actual_source_voltage( setup->dev, setup->eeprom_subdev,
@@ -945,8 +995,13 @@ static int init_observables_unknown( calibration_setup_t *setup )
 		o = setup->observables + i;
 		o->reference_source = i;
 		assert( o->name == NULL );
-		asprintf( &o->name, "calibration source %i, range %i, ground referenced",
-			o->reference_source, range);
+		if( asprintf( &o->name, "calibration source %i, range %i, ground referenced",
+				o->reference_source, range) < 0)
+		{
+			errno = ENOMEM;
+			perror( NULL );
+			return -1;
+		}
 		o->observe_insn = tmpl;
 		o->observe_insn.chanspec = CR_PACK( 0, range, AREF_GROUND) | CR_ALT_SOURCE | CR_ALT_FILTER;
 		o->target = 0.0;
