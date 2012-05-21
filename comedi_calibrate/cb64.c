@@ -48,7 +48,9 @@ static int setup_cb_pci_60xx( calibration_setup_t *setup );
 static int setup_cb_pci_603x( calibration_setup_t *setup );
 static int setup_cb_pci_6052( calibration_setup_t *setup );
 static int setup_cb_pci_4020( calibration_setup_t *setup );
+#ifdef notused
 static int setup_cb_pci_unknown( calibration_setup_t *setup );
+#endif
 
 static int cal_cb_pci_64xx( calibration_setup_t *setup );
 static int cal_cb_pci_60xx( calibration_setup_t *setup );
@@ -58,7 +60,9 @@ static int cal_cb_pci_4020( calibration_setup_t *setup );
 static int init_observables_64xx( calibration_setup_t *setup );
 static int init_observables_60xx( calibration_setup_t *setup );
 static int init_observables_4020( calibration_setup_t *setup );
+#ifdef notused
 static int init_observables_unknown( calibration_setup_t *setup );
+#endif
 
 static struct board_struct boards[]={
 	{ "pci-das6402/16",	STATUS_SOME,	setup_cb_pci_64xx },
@@ -213,6 +217,7 @@ static int setup_cb_pci_4020( calibration_setup_t *setup )
 	return 0;
 }
 
+#ifdef notused
 static int setup_cb_pci_unknown( calibration_setup_t *setup )
 {
 	static const int caldac_subdev = 6;
@@ -221,6 +226,7 @@ static int setup_cb_pci_unknown( calibration_setup_t *setup )
 	setup->do_cal = 0;
 	return 0;
 }
+#endif
 
 static int ai_ground_observable_index_64xx( const calibration_setup_t *setup,
 	unsigned int channel, unsigned int range )
@@ -965,6 +971,7 @@ static int cal_cb_pci_4020( calibration_setup_t *setup )
 	return generic_cal_by_channel_and_range( setup, &layout );
 }
 
+#ifdef notused
 static int init_observables_unknown( calibration_setup_t *setup )
 {
 	comedi_insn tmpl;
@@ -1019,6 +1026,7 @@ static int init_observables_unknown( calibration_setup_t *setup )
 	}
 	return 0;
 }
+#endif
 
 /* We were unable to read the onboard calibration reference voltages on the 6052, so we'll just
  * load caldac values from eeprom until the problem is resolved somehow. */
