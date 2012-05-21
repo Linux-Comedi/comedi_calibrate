@@ -475,6 +475,7 @@ static int ni_setup_ao_observables( calibration_setup_t *setup )
 			set_target( setup, ni_ao_unip_low_linearity( channel ), 1.0);
 		}
 	}
+	return 0;
 }
 
 static int ni_setup_observables( calibration_setup_t *setup )
