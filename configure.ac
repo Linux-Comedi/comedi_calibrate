@@ -7,6 +7,7 @@ AM_MAINTAINER_MODE
 
 AC_PROG_CC
 AM_PROG_CC_STDC
+AM_PROG_CC_C_O
 AC_ISC_POSIX
 AC_PROG_CXX
 AC_PROG_RANLIB
@@ -30,6 +31,9 @@ AC_LANG_PUSH(C++)
 AC_CHECK_HEADER([boost/program_options.hpp],,AC_MSG_ERROR([Failed to find boost/program_options.hpp]))
 AC_CHECK_LIB([boost_program_options],[main],,AC_MSG_ERROR([Failed to find libboost_program_options.])) # cheat!
 AC_LANG_POP(C++)
+
+COMEDI_CALIBRATE_CFLAGS="-Wall"
+AC_SUBST(COMEDI_CALIBRATE_CFLAGS)
 
 AC_CONFIG_FILES([
 Makefile
