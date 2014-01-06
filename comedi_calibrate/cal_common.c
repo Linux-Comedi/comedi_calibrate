@@ -273,7 +273,7 @@ int generic_cal_by_channel_and_range( calibration_setup_t *setup,
 	const generic_layout_t *layout  )
 {
 	int range, channel, num_ai_ranges, num_ai_channels, num_ao_ranges,
-		num_ao_channels, retval, num_ai_calibrations;
+		num_ao_channels, retval;
 	comedi_calibration_setting_t *current_cal;
 
 	assert( comedi_range_is_chan_specific( setup->dev, setup->ad_subdev ) == 0 );
@@ -295,8 +295,6 @@ int generic_cal_by_channel_and_range( calibration_setup_t *setup,
 		if( num_ao_channels < 0 ) return -1;
 	}else
 		num_ao_ranges = num_ao_channels = 0;
-
-	num_ai_calibrations = num_ai_ranges * num_ai_channels;
 
 	for( channel = 0; channel < num_ai_channels; channel++ )
 	{

@@ -442,13 +442,12 @@ int preobserve( calibration_setup_t *setup, int obs)
 void measure_observable( calibration_setup_t *setup, int obs)
 {
 	char s[100];
-	int n;
 	new_sv_t sv;
 
 	my_sv_init(&sv, setup,
 		setup->observables[obs].observe_insn.subdev,
 		setup->observables[obs].observe_insn.chanspec);
-	n = new_sv_measure(setup->dev, &sv);
+	new_sv_measure(setup->dev, &sv);
 
 	sci_sprint_alt(s,sv.average,sv.error);
 	DPRINT(0,"reading %s, target %g\n",s, setup->observables[obs].target);
@@ -1285,13 +1284,12 @@ int read_eeprom( calibration_setup_t *setup, int addr)
 
 double read_chan( calibration_setup_t *setup, int adc,int range)
 {
-	int n;
 	new_sv_t sv;
 	char str[100];
 
 	my_sv_init(&sv, setup,  setup->ad_subdev,CR_PACK(adc,range,AREF_OTHER));
 
-	n=new_sv_measure( setup->dev, &sv);
+	new_sv_measure( setup->dev, &sv);
 
 	sci_sprint_alt(str,sv.average,sv.error);
 	printf("chan=%d ave=%s\n",adc,str);
@@ -1301,12 +1299,11 @@ double read_chan( calibration_setup_t *setup, int adc,int range)
 
 int read_chan2( calibration_setup_t *setup, char *s,int adc,int range)
 {
-	int n;
 	new_sv_t sv;
 
 	my_sv_init(&sv, setup, setup->ad_subdev,CR_PACK(adc,range,AREF_OTHER));
 
-	n=new_sv_measure( setup->dev, &sv);
+	new_sv_measure( setup->dev, &sv);
 
 	return sci_sprint_alt(s,sv.average,sv.error);
 }
@@ -1552,11 +1549,9 @@ int sci_sprint(char *s,double x,double y)
 	int sigfigs;
 	double mantissa;
 	double error;
-	double mindigit;
 
 	errsig = floor(log10(y));
 	maxsig = floor(log10(x));
-	mindigit = pow(10,errsig);
 
 	if(maxsig<errsig)maxsig=errsig;
 
@@ -1575,11 +1570,9 @@ int sci_sprint_alt(char *s,double x,double y)
 	int sigfigs;
 	double mantissa;
 	double error;
-	double mindigit;
 
 	errsig = floor(log10(fabs(y)));
 	maxsig = floor(log10(fabs(x)));
-	mindigit = pow(10,errsig);
 
 	if(maxsig<errsig)maxsig=errsig;
 	sigfigs = maxsig-errsig+2;
