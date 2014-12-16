@@ -42,7 +42,9 @@ std::vector<std::string> NIMSeries::Calibrator::supportedDeviceNames() const
 	supportedDeviceNames.push_back("pci-6221");
 	supportedDeviceNames.push_back("pci-6221_37pin");
 	supportedDeviceNames.push_back("pci-6224");
+	supportedDeviceNames.push_back("pxi-6224");
 	supportedDeviceNames.push_back("pci-6225");
+	supportedDeviceNames.push_back("pxi-6225");
 	supportedDeviceNames.push_back("pci-6229");
 	supportedDeviceNames.push_back("pci-6250");
 	supportedDeviceNames.push_back("pci-6251");
