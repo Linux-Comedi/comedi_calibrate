@@ -76,7 +76,7 @@ CalibrationSet NIMSeries::Calibrator::calibrate(const comedi::device &dev)
 	catch(const std::exception &error)
 	{
 		std::cout << "NOTICE: " << _dev.board_name() << " does not appear to have an analog output subdevice." << std::endl;
-		std::cout << "NOTICE: Skipping the analog ouput calibration." << std::endl;
+		std::cout << "NOTICE: Skipping the analog output calibration." << std::endl;
 	}
 	return calibration;
 }
