@@ -603,6 +603,7 @@ std::vector<lsampl_t> NIMSeries::References::readReference(unsigned numSamples, 
 		std::copy(data.begin(), data.end(), longData.begin());
 	}
 	fclose(file);
+	ADSubdev.cancel();
 	if(samplesRead != numSamples)
 	{
 		std::ostringstream message;
