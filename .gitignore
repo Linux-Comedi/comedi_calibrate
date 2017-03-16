@@ -1,0 +1,23 @@
+# common patterns for all directories
+.deps
+.libs
+*.a
+*.o
+*.la
+*.lo
+*.swp
+*~
+Makefile
+Makefile.in
+# rooted patterns
+/aclocal.m4
+/autom4te.cache/
+/comedi_calibrate/comedi_calibrate
+/comedi_soft_calibrate/comedi_soft_calibrate
+/compile
+/config.log
+/config.status
+/configure
+/depcomp
+/install-sh
+/missing
