@@ -3,7 +3,7 @@ AC_INIT([comedi_calibrate], [4])
 AC_CONFIG_SRCDIR([comedi_calibrate/comedi_calibrate.c])
 AM_INIT_AUTOMAKE
 
-AM_MAINTAINER_MODE
+AM_MAINTAINER_MODE([enable])
 
 AC_PROG_CC
 AM_PROG_CC_STDC
