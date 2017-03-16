@@ -1,5 +1,5 @@
 
-AC_INIT([comedi_calibrate], [4])
+AC_INIT([comedi_calibrate], [5])
 AC_CONFIG_SRCDIR([comedi_calibrate/comedi_calibrate.c])
 AM_INIT_AUTOMAKE
 
