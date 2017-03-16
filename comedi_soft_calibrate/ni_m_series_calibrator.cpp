@@ -39,25 +39,36 @@ std::vector<std::string> NIMSeries::Calibrator::supportedDeviceNames() const
 {
 	std::vector<std::string> supportedDeviceNames;
 	supportedDeviceNames.push_back("pci-6220");
+	supportedDeviceNames.push_back("pxi-6220");
 	supportedDeviceNames.push_back("pci-6221");
 	supportedDeviceNames.push_back("pci-6221_37pin");
+	supportedDeviceNames.push_back("pxi-6221");
 	supportedDeviceNames.push_back("pci-6224");
 	supportedDeviceNames.push_back("pxi-6224");
 	supportedDeviceNames.push_back("pci-6225");
 	supportedDeviceNames.push_back("pxi-6225");
 	supportedDeviceNames.push_back("pci-6229");
+	supportedDeviceNames.push_back("pxi-6229");
 	supportedDeviceNames.push_back("pci-6250");
+	supportedDeviceNames.push_back("pxi-6250");
 	supportedDeviceNames.push_back("pci-6251");
+	supportedDeviceNames.push_back("pxi-6251");
 	supportedDeviceNames.push_back("pcie-6251");
 	supportedDeviceNames.push_back("pxie-6251");
 	supportedDeviceNames.push_back("pci-6254");
+	supportedDeviceNames.push_back("pxi-6254");
 	supportedDeviceNames.push_back("pci-6259");
+	supportedDeviceNames.push_back("pxi-6259");
 	supportedDeviceNames.push_back("pcie-6259");
+	supportedDeviceNames.push_back("pxie-6259");
 	supportedDeviceNames.push_back("pci-6280");
+	supportedDeviceNames.push_back("pxi-6280");
 	supportedDeviceNames.push_back("pci-6281");
 	supportedDeviceNames.push_back("pxi-6281");
 	supportedDeviceNames.push_back("pci-6284");
+	supportedDeviceNames.push_back("pxi-6284");
 	supportedDeviceNames.push_back("pci-6289");
+	supportedDeviceNames.push_back("pxi-6289");
 	return supportedDeviceNames;
 }
 
