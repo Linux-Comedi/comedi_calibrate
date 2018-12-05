@@ -1,0 +1,7 @@
+changelog
+*.log
+*.substvars
+files
+*.swp
+.debhelper/
+comedi-calibrate/
