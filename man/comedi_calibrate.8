@@ -77,7 +77,7 @@ the settings in the calibration file \fIcal_file\fR.
 \fBcomedi_calibrate\fR recognizes the following options:
 
 .TP
-.BI \-a\  aref ,\ \-\-aref\  aref
+.BI \-a\fR,\fB\ \-\-aref\  aref
 Along with \fB--channel\fR, \fB--range\fR
 and \fB--subdevice\fR, this specifies which calibration you want comedi_calibrate
 leave applied to the board.  The default is 0.
@@ -89,7 +89,7 @@ By default, comedi_calibrate will only perform a new calibration if
 no existing calibration file is found (see \fB--save-file\fR).
 
 .TP
-.BI \-c\  channel, \-\-channel\  channel
+.BI \-c\fR,\fB\ \-\-channel\  channel
 Along with \fB--subdevice\fR, \fB--range\fR
 and \fB--aref\fR, this specifies which calibration you want comedi_calibrate
 to leave applied to the board.  The default is 0.
@@ -100,7 +100,7 @@ Perform (or not) dump of various information about
 state of calibration prior to performing new calibration.
 
 .TP
-.BI \-f\  /dev/comediN, \-\-file\  /dev/comediN
+.BI \-f\fR,\fB\ \-\-file\  /dev/comediN
 Perform calibration on device \fB/dev/comediN\fR.
 
 .TP
@@ -108,11 +108,11 @@ Perform calibration on device \fB/dev/comediN\fR.
 Print help for options then exit.
 
 .TP
-.B \-q, \-\-quiet
-Don't generate output to stdout.
+.B \-q\fR,\fB \-\-quiet
+Don't generate output to standard output.
 
 .TP
-.BI \-r\  range ,\ \-\-range\  range
+.BI \-r\fR,\fB\ \-\-range\  range
 Along with \fB--channel\fR, \fB--subdevice\fR
 and \fB--aref\fR, this specifies which calibration you want comedi_calibrate
 to leave applied to the board.  The default is 0.
@@ -135,21 +135,22 @@ Perform (or not) dump of various information about
 state of calibration after performing new calibration.
 
 .TP
-.BI \-S\  file ,\ \-\-save-file\  file
+.BI \-S\fR,\fB\ \-\-save-file\  file
 Save calibration information to specified file,
 instead of default location.  If the file already exists, comedi_calibrate
 will also use its contents as a starting point for the calibration pass (see
 \fB--no-reset\fR).
 
 .TP
-.BI \-s\  subdevice ,\ \-\-subdevice\  subdevice
+.BI \-s\fR,\fB\ \-\-subdevice\  subdevice
 Along with \fB--channel\fR, \fB--range\fR
 and \fB--aref\fR, this specifies which calibration you want comedi_calibrate
 to leave applied to the board.  The default is 0.
 
 .TP
-.B \-v, \-\-verbose
-Generate more verbose output to stdout, can be specified multiple times
+.B \-v\fR,\fB \-\-verbose
+Generate more verbose output to standard output.
+Can be specified multiple times.
 
 
 .SH SEE ALSO
