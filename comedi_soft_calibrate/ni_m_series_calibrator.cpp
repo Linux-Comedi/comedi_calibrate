@@ -329,7 +329,7 @@ unsigned NIMSeries::Calibrator::smallestCalibratedAIRangeContaining(const std::v
 	if(smallestCRange == 0)
 	{
 		std::ostringstream message;
-		message << __FUNCTION__ << ": no calibrated range with maxium voltage above " << rangeThreshold << "V found.";
+		message << __FUNCTION__ << ": no calibrated range with maximum voltage above " << rangeThreshold << "V found.";
 		throw std::invalid_argument(message.str());
 	}
 	return smallestRange;
