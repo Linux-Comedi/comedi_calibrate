@@ -80,7 +80,7 @@ void generic_prep_adc_caldacs( calibration_setup_t *setup,
 			channel, range, AREF_GROUND, setup->old_calibration );
 		if( retval < 0 )
 		{
-			DPRINT( 0, "Failed to apply existing calibration, reseting dac caldacs.\n" );
+			DPRINT( 0, "Failed to apply existing calibration, resetting dac caldacs.\n" );
 			reset_caldac( setup, layout->adc_offset( channel ) );
 			reset_caldac( setup, layout->adc_gain( channel ) );
 			reset_caldac( setup, layout->adc_offset_fine( channel ) );
@@ -111,7 +111,7 @@ void generic_prep_dac_caldacs( calibration_setup_t *setup,
 			channel, range, AREF_GROUND, setup->old_calibration );
 		if( retval < 0 )
 		{
-			DPRINT( 0, "Failed to apply existing calibration, reseting dac caldacs.\n" );
+			DPRINT( 0, "Failed to apply existing calibration, resetting dac caldacs.\n" );
 			reset_caldac( setup, layout->dac_offset( channel ) );
 			reset_caldac( setup, layout->dac_gain( channel ) );
 			reset_caldac( setup, layout->dac_linearity( channel ) );
