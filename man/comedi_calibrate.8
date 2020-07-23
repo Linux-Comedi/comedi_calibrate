@@ -64,12 +64,14 @@ starting point.
 .BI comedi_calibrate\ \-\-reset\ \-\-calibrate
 Perform a fresh calibration and save results to default location.
 
-.TP
+.PP
 .BI comedi_calibrate\ \-\-no\-calibrate\ \-\-subdevice\  subd\  \e
-.BI              \-\-range\  range\  \-\-save\-file\  cal_file
 .br
+.BI \-\-range\  range\  \-\-save\-file\  cal_file
+.RS
 Apply calibration for subdevice \fIsubd\fR, range \fIrange\fR, using
 the settings in the calibration file \fIcal_file\fR.
+.RE
 
 
 .SH OPTIONS
